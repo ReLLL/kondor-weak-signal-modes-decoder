@@ -43,7 +43,7 @@ ctest --test-dir build-sdrpp --output-on-failure
 DX_TEST_BUILD=build-sdrpp python3 tests/test_helper.py
 ```
 
-The standard host is SDR++ 1.2.0, May 28, 2024 build. Brown is 1.2.1, August 4, 2026 build. Standard integration uses standard APIs and ImGui hooks, independent receiver settings and bundled CTY.DAT; Brown's native integration stays intact. Both use the pinned MSHV decoder source. The helper's FFTW dependency must resolve through `@rpath` to its selected host's bundled library. CMake adjusts its install name after linking. No host bundle is re-signed.
+The baseline standard host is SDR++ 1.2.0, May 28, 2024 build. Brown is 1.2.1, August 4, 2026 build. Standard integration uses standard APIs and ImGui hooks, independent receiver settings and bundled CTY.DAT; Brown's native integration stays intact. Both use the pinned MSHV decoder source. CMake stages exact matching VOLK and FFTW binaries under private Kondor install names and binds the plugin/helpers through `@loader_path`. Source archives are checksum-pinned in `scripts/stage_dsp_runtime.py`, cached under `build-dsp-runtime/source/`, and included with corresponding source; `COPYING.DSP` and `dsp-runtime.json` travel with each payload. New upstream runtime versions require an audited source pin. The host bundle remains unchanged. See [host compatibility](HOST_COMPATIBILITY.md).
 
 ## Release gate
 
@@ -63,12 +63,12 @@ On macOS, creating an APFS DMG can leave that output image attached and make ver
 
 ```sh
 mkdir -p build-installer
-xcrun swiftc -O -target arm64-apple-macos15.0 installer/InstallerCore.swift installer/GridLocator.swift tests/installer_tests.swift -o build-installer/installer-tests
+xcrun swiftc -O -target arm64-apple-macos15.0 -module-cache-path build-installer/module-cache installer/InstallerCore.swift installer/HostCompatibility.swift installer/GridLocator.swift tests/installer_tests.swift -o build-installer/installer-tests
 build-installer/installer-tests
 ```
 
 Checks use isolated temporary profiles and synthetic hosts: fresh installation, repeated upgrades, settings/log preservation, executable permissions, backups, rollback at staged/plugin/configuration replacement, running host, corrupt payloads, incompatible host, malformed configuration, symlink refusal, concurrent settings changes, standard payload/country data and receiver setup. Invalid locators must fail before quitting a running host. Keep normal profiles untouched during installer tests.
 
-Inspect the packaged installer window, host selection and Cancel behavior without installing into a normal profile. Inspect both payload manifests/signatures, check the DMG, and verify downloaded release checksums. Host fingerprints and versions are build provenance only. Installation checks host identity and required library files, not exact versions/fingerprints. Test acceptance of rebuilt cores and different version numbers for both hosts. Custom profiles are supported; binaries expect `/Applications/SDR++Brown.app` or `/Applications/SDR++.app` respectively. First-run preparation opens the selected host, waits for its default config, then asks it to quit normally. Existing disabled/enabled preferences are preserved on upgrades; the initial registration is enabled.
+Inspect the packaged installer window, host selection and Cancel behavior without installing into a normal profile. Inspect both payload manifests/signatures, check the DMG, and verify downloaded release checksums. Host fingerprints and versions are build provenance only. Installation checks host identity, architecture, real dependency and symbol loading, ImGui layout, and helper startup. Test acceptance of rebuilt cores and different version numbers for both hosts. Custom profiles are supported; binaries expect `/Applications/SDR++Brown.app` or `/Applications/SDR++.app` respectively. First-run preparation opens the selected host, waits for its default config, then asks it to quit normally. Existing disabled/enabled preferences are preserved on upgrades; the initial registration is enabled.
 
 Location suggestions use the installer's own macOS Location Services permission and purpose strings. Automatically attempt only for an empty grid; never overwrite a prefilled or manually edited grid. Reject stale or very coarse estimates, show accuracy, and offer manual/map entry. Raw coordinates are not saved in the profile; only the confirmed grid is installed. Location denial must not block installation.

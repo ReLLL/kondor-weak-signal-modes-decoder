@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.0.56 (2026-11-01)
+
+Includes the unpublished 1.0.54 and 1.0.55 changes below: hidden startup, unresolved-sender filtering, bundled DSP runtimes and host compatibility checks. Settings and saved receptions are preserved during installation.
+
+## 1.0.55 (unreleased development)
+
+- Bundle matching private VOLK/FFTW runtimes so compatible SDR++ upgrades can change their library filenames without breaking Kondor. Reinstalling restores the complete verified runtime payload.
+- Check the real host architecture, dependency/symbol loading, ImGui layout and decoder helper startup before installation. Keep the installer responsive and cancel safely if the host updates during replacement.
+- Start with the decoder window hidden when the SDR host launches. Enabled decoding, logging and notifications continue in the background; Open Kondor Decoder shows the current data.
+- Keep the SDR# worker's native window hidden during creation so startup does not briefly flash it onscreen.
+
+## 1.0.54 (unreleased development)
+
+- Make Remove likely falses hide unresolved sender hashes before checking country/grid evidence, including existing history, new receptions, statistics, bearings and alerts. Previously empty countries and hash senders bypassed the check.
+- Keep valid senders with unresolved targets, uniquely resolved sender hashes and bracketed full callsigns. Preserve reception history and CSV logs; unchecking the filter restores hidden receptions.
+
 ## 1.0.53 (2026-10-19)
 
 - Rename the project to Kondor Weak Signal Modes Decoder: FT8 / FT4 / WSPR / FST4 / FST4W / JS8 / Q65. Compact controls and installer filenames use Kondor Weak Signal Modes Decoder.

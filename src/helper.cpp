@@ -12,7 +12,8 @@
 namespace {
 bool transfer(int fd,void* data,size_t size,bool writing){auto* p=static_cast<char*>(data);while(size){ssize_t n=writing?write(fd,p,size):read(fd,p,size);if(n<0&&errno==EINTR)continue;if(n<=0)return false;p+=n;size-=size_t(n);}return true;}
 }
-int main(){
+int main(int argc,char** argv){
+ if(argc==2&&std::string(argv[1])=="--check-runtime")_exit(0);
 #ifdef _WIN32
  _setmode(0,_O_BINARY);_setmode(1,_O_BINARY);
 #endif

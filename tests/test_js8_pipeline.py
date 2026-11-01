@@ -20,6 +20,8 @@ def main():
         launcher = root / "dx_js8_decoder"
         frozen = root / "js8-helper-test"
         shutil.copy2(helper, frozen)
+        for library in helper.parent.glob("libkondor_*.dylib"):
+            shutil.copy2(library, root / library.name)
         launcher.write_text("#!/bin/sh\nexec " + shlex.quote(str(frozen)) + " 2>>" + shlex.quote(str(root / "helper-stderr.txt")) + "\n")
         launcher.chmod(0o755)
         (root / "dx_mock_valid_small").symlink_to(mock)

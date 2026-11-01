@@ -85,7 +85,7 @@ private:
 #if !DX_HOST_BROWN
  std::string receiverGrid_,receiverCall_;bool receiverGridError_=false;
 #endif
- bool enabled_=true,open_=true,present_=true,paused_=false,ft8_=true,ft4_=true,ownsGesture_=false,popup_=false,settingsLoaded_=false,detailsOpen_=false;
+ bool enabled_=true,open_=false,present_=false,paused_=false,ft8_=true,ft4_=true,ownsGesture_=false,popup_=false,settingsLoaded_=false,detailsOpen_=false;
  dx::Json modeSettings_=dx::Json::object();bool modeSettings();bool modeEnabled(const std::string&)const;std::vector<dx::Preset> additionalPresets()const;
  int view_=0,tableTime_=2,sort_=17;bool descending_=true;float split_=.53f,detailsSplit_=.3f;
  double center_=0,rate_=0,lastRefresh_=0;uint64_t generation_=1;ImVec2 windowMin_,windowMax_;

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(kondor_weak_signal_modes_decoder VERSION 1.0.53 LANGUAGES CXX)
+project(kondor_weak_signal_modes_decoder VERSION 1.0.56 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(WIN32)
@@ -213,3 +213,25 @@ endif()
 if(DX_JS8)
  include(cmake/JS8.cmake)
 endif()
+
+# Use exact, privately named DSP runtimes, independent of host SONAME changes.
+# SDR++ core remains host-owned and is checked in an isolated loader process.
+execute_process(COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/scripts/stage_dsp_runtime.py"
+ --build "${CMAKE_BINARY_DIR}" --host-app "${HOST_APP}" COMMAND_ERROR_IS_FATAL ANY)
+add_executable(dx_host_probe installer/host_probe.cpp)
+set_target_properties(dx_host_probe PROPERTIES BUILD_WITH_INSTALL_RPATH TRUE
+ INSTALL_RPATH "")
+if(SANITIZE)
+ # Initialize ASan before dlopen loads the instrumented plugin and host globals.
+ target_compile_options(dx_host_probe PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+ target_link_options(dx_host_probe PRIVATE -fsanitize=address,undefined)
+endif()
+add_test(NAME dx_host_compatibility COMMAND "${Python3_EXECUTABLE}"
+ "${CMAKE_SOURCE_DIR}/tests/test_host_compatibility.py" --build "${CMAKE_BINARY_DIR}"
+ --kind "${DX_HOST}" --host "${HOST_APP}")
+foreach(target dx_notebook dx_decoder dx_baseline dx_fixture dx_modes_decoder dx_wspr_decoder dx_native_reference dx_js8_decoder dx_js8_reference dx_js8_message_tests)
+ if(TARGET ${target})
+  add_custom_command(TARGET ${target} POST_BUILD COMMAND "${Python3_EXECUTABLE}"
+   "${CMAKE_SOURCE_DIR}/scripts/stage_dsp_runtime.py" --binary "$<TARGET_FILE:${target}>")
+ endif()
+endforeach()

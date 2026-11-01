@@ -22,6 +22,8 @@ final class InstallerWindow: NSObject, NSApplicationDelegate, NSWindowDelegate, 
     private let choose = NSButton(title: "Choose profile...", target: nil, action: nil)
     private let cancel = NSButton(title: "Cancel", target: nil, action: nil)
     private let help = NSButton(title: "Installation help", target: nil, action: nil)
+    private let diagnostics = NSButton(title: "Copy diagnostics", target: nil, action: nil)
+    private var diagnosticText = ""
     private let progress = NSProgressIndicator()
     private let hosts = NSPopUpButton()
     private let homeGrid = NSTextField()
@@ -95,6 +97,8 @@ final class InstallerWindow: NSObject, NSApplicationDelegate, NSWindowDelegate, 
         stack.addArrangedSubview(profileLabel)
         status.font = .systemFont(ofSize: 13); status.setAccessibilityIdentifier("installStatus")
         stack.addArrangedSubview(status)
+        diagnostics.bezelStyle = .rounded; diagnostics.target = self; diagnostics.action = #selector(copyDiagnostics)
+        diagnostics.isHidden = true; stack.addArrangedSubview(diagnostics)
         progress.style = .spinning; progress.controlSize = .small; progress.isDisplayedWhenStopped = false
         stack.addArrangedSubview(progress)
         let buttons = NSStackView(views: [help, NSView(), cancel, primary])
@@ -125,20 +129,35 @@ final class InstallerWindow: NSObject, NSApplicationDelegate, NSWindowDelegate, 
     }
 
     private func refresh() {
+        diagnostics.isHidden = true
         let folder = manifests.indices.contains(selectedHost) ? manifests[selectedHost].profileFolder : "sdrpp-brown"
         profileLabel.stringValue = profile == FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/" + folder)
             ? "Install for the current macOS user in the normal profile."
             : "Selected profile: " + profile.lastPathComponent
-        do {
-            let engine = try installer()
-            try engine.validatePayload(); try engine.validateHost(host)
-            let exists = FileManager.default.fileExists(atPath: profile.appendingPathComponent("config.json").path)
-            if !exists { status.stringValue = "Install will prepare \(engine.manifest.hostName)'s settings automatically."; primary.title = "Install" }
-            else if try hostIsRunning(engine.manifest) { status.stringValue = "\(engine.manifest.hostName) is open. Install will ask it to quit safely first."; primary.title = "Quit and Install" }
-            else { status.stringValue = "Ready to install for \(engine.manifest.hostName)."; primary.title = "Install" }
-            primary.isEnabled = true
-        } catch {
-            status.stringValue = error.localizedDescription; primary.isEnabled = false
+        let engine: PluginInstaller
+        do { engine = try installer() } catch {
+            showDiagnostic(error); primary.isEnabled = false; return
+        }
+        let index = selectedHost, checkedProfile = profile, checkedHost = host
+        primary.isEnabled = false; status.stringValue = "Checking radio compatibility..."
+        DispatchQueue.global(qos: .userInitiated).async {
+            let result: Result<(String, String), Error>
+            do {
+                try engine.validatePayload(); try engine.validateHost(checkedHost)
+                let exists = FileManager.default.fileExists(atPath: checkedProfile.appendingPathComponent("config.json").path)
+                if !exists { result = .success(("Install will prepare \(engine.manifest.hostName)'s settings automatically.", "Install")) }
+                else if try hostIsRunning(engine.manifest) { result = .success(("\(engine.manifest.hostName) is open. Install will ask it to quit safely first.", "Quit and Install")) }
+                else { result = .success(("Ready to install for \(engine.manifest.hostName).", "Install")) }
+            } catch { result = .failure(error) }
+            DispatchQueue.main.async {
+                guard !self.busy, self.selectedHost == index, self.profile == checkedProfile else { return }
+                switch result {
+                case .success(let (message, title)):
+                    self.status.stringValue = message; self.primary.title = title; self.primary.isEnabled = true; self.primary.action = #selector(self.install)
+                case .failure(let error):
+                    self.showDiagnostic(error); self.primary.title = "Retry"; self.primary.action = #selector(self.recheck); self.primary.isEnabled = true
+                }
+            }
         }
     }
 
@@ -199,10 +218,22 @@ final class InstallerWindow: NSObject, NSApplicationDelegate, NSWindowDelegate, 
 
     private func failed(_ error: Error) {
         busy = false; progress.stopAnimation(nil)
-        status.stringValue = error.localizedDescription; status.textColor = .systemRed
-        primary.title = "Retry"; primary.isEnabled = true; cancel.isEnabled = true; choose.isEnabled = true; hosts.isEnabled = true; homeGrid.isEnabled = true
+        showDiagnostic(error); status.textColor = .systemRed
+        primary.title = "Retry"; primary.action = #selector(recheck); primary.isEnabled = true; cancel.isEnabled = true; choose.isEnabled = true; hosts.isEnabled = true; homeGrid.isEnabled = true
         locate.isEnabled = true; gridMap.isEnabled = true
     }
+
+    private func showDiagnostic(_ error: Error) {
+        status.stringValue = error.localizedDescription.components(separatedBy: .newlines).first ?? error.localizedDescription
+        diagnosticText = error.localizedDescription
+        if manifests.indices.contains(selectedHost) {
+            let info = NSDictionary(contentsOf: host.appendingPathComponent("Contents/Info.plist"))
+            diagnosticText = "Kondor \(manifests[selectedHost].version); \(manifests[selectedHost].hostName) \(info?["CFBundleVersion"] as? String ?? "unknown version")\n" + diagnosticText
+        }
+        diagnostics.isHidden = false; status.toolTip = diagnosticText
+    }
+    @objc private func recheck() { status.textColor = .labelColor; refresh() }
+    @objc private func copyDiagnostics() { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(diagnosticText, forType: .string) }
 
     @objc private func chooseProfile() {
         let panel = NSOpenPanel()

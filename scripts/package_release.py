@@ -12,8 +12,9 @@ import tempfile
 import zipfile
 import time
 from build_installer import build_installer, sign
-from mode_payload import mode_files, NATIVE_BINARIES
+from mode_payload import mode_files, NATIVE_BINARIES, DSP_FILES
 from stage_runtime_sources import prepare as prepare_runtime_sources
+from install import validate_runtime
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC_FILES = ("README.md", "CREDITS.md", "LICENSE", "THIRD_PARTY_NOTICES.md", "CHANGELOG.md", "CMakeLists.txt", ".gitignore")
@@ -93,6 +94,8 @@ def source_files():
         yield js8_runtime / "complete.json"
         for path in sorted(js8_runtime.glob("qtbase-*.tar.xz")):
             yield path
+    for path in sorted((ROOT / "build-dsp-runtime/source").glob("*.tar.gz")):
+        yield path
 
 
 def main():
@@ -103,22 +106,25 @@ def main():
     parser.add_argument("--brown-app", type=Path, default=Path("/Applications/SDR++Brown.app"))
     parser.add_argument("--sdrpp-build", type=Path, help="Matching standard SDR++ build to include in the same installer")
     parser.add_argument("--sdrpp-app", type=Path, default=Path("/Applications/SDR++.app"))
+    parser.add_argument("--output-dir", type=Path, default=ROOT / "dist", help="Local package destination")
     args = parser.parse_args()
     if args.notary_profile and args.signing_identity == "-":
         parser.error("Notarization requires a Developer ID signing identity")
     version = re.search(r"VERSION (\d+\.\d+\.\d+)", (ROOT / "CMakeLists.txt").read_text()).group(1)
     for build, host in [(args.build, "brown")] + ([(args.sdrpp_build, "sdrpp")] if args.sdrpp_build else []):
+        if not all((build / name).is_file() for name in DSP_FILES):
+            raise ValueError("Private DSP runtime or compatibility checker is missing; rebuild all targets")
         manifest = json.loads((build / "dx_notebook.host.json").read_text())
         if manifest != {"host": host, "version": version}:
             raise ValueError("Binary host/version manifest does not match this release")
     name = "kondor-weak-signal-modes-decoder-" + version
     if mode_files(args.build):
         prepare_runtime_sources(ROOT / "build-mode-runtime/runtime-source")
-    output = ROOT / "dist"
-    output.mkdir(exist_ok=True)
+    output = args.output_dir
+    output.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="dx-release-") as temporary:
         package = Path(temporary) / name
-        for relative in ("README.md", "CREDITS.md", "LICENSE", "THIRD_PARTY_NOTICES.md", "CHANGELOG.md", "scripts/install.py", "scripts/mode_payload.py", "resources/world.geojson", "resources/cty.dat", "resources/cty-LICENSE.txt", "third_party/earcut/LICENSE", "docs/INSTALL.md", "docs/USER_GUIDE.md", "docs/WINDOWS.md", "docs/images/live-reception-overview.jpg", "docs/images/decoder-workspace.jpg"):
+        for relative in ("README.md", "CREDITS.md", "LICENSE", "THIRD_PARTY_NOTICES.md", "CHANGELOG.md", "scripts/install.py", "scripts/mode_payload.py", "resources/world.geojson", "resources/cty.dat", "resources/cty-LICENSE.txt", "third_party/earcut/LICENSE", "docs/INSTALL.md", "docs/HOST_COMPATIBILITY.md", "docs/USER_GUIDE.md", "docs/WINDOWS.md", "docs/images/live-reception-overview.jpg", "docs/images/decoder-workspace.jpg"):
             target = package / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(ROOT / relative, target)
@@ -140,8 +146,10 @@ def main():
                 strings = subprocess.check_output(["strings", str(target)])
                 if b"/Users/" in strings:
                     raise ValueError("Local user path in release binary")
-                sign(target, args.signing_identity, helper=binary in ("dx_decoder", "dx_modes_decoder", "dx_wspr_decoder", "dx_js8_decoder"))
+                sign(target, args.signing_identity, helper=binary in ("dx_decoder", "dx_modes_decoder", "dx_wspr_decoder", "dx_js8_decoder", "dx_host_probe"))
             shutil.copyfile(build / "dx_notebook.host.json", package / folder / "dx_notebook.host.json")
+            validate_runtime(package / folder, "brown" if folder == "bin" else "sdrpp",
+                             args.brown_app if folder == "bin" else args.sdrpp_app)
         app = build_installer(package, version, args.signing_identity, args.brown_app, args.sdrpp_app if args.sdrpp_build else None)
         if args.notary_profile:
             submission = Path(temporary) / "notarization.zip"

@@ -17,6 +17,7 @@ int main(){
   auto message=reception(now,sender?"K2ABC "+hash+" -10":hash+" K2ABC -10");CHECK(store.insert(message,home,country));
   const auto& identity=sender?message.identity.transmitter:message.identity.called;CHECK(identity==(age<=720?"K1ABC":hash));
   CHECK(message.identitySource==(age<=720?"unique-recent-hash":"literal"));if(sender)CHECK(message.country==(age<=720?"United States":""));
+  dx::Filter filter;filter.removeLikelyFalse=true;CHECK(store.passesLocationFilter(message,filter)==(age<=720||!sender));
  }
  for(int bits:{10,12,22}){
   auto pair=collision(bits);CHECK(!pair.first.empty()&&pair.first!=pair.second&&dx::callHash(pair.first,bits)==dx::callHash(pair.second,bits));auto hash=token(pair.first,bits);

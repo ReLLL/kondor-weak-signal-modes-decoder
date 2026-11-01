@@ -7,7 +7,7 @@ import shutil
 import subprocess
 import tempfile
 import re
-from mode_payload import mode_files, NATIVE_BINARIES
+from mode_payload import mode_files, NATIVE_BINARIES, DSP_FILES
 
 ROOT = Path(__file__).resolve().parents[1]
 APP_NAME = "Install Kondor Weak Signal Modes Decoder.app"
@@ -24,6 +24,8 @@ def sign(path, identity, helper=False):
 
 
 def add_payload(package, contents, folder, binary_folder, host_app, version):
+    if not all((package / binary_folder / name).is_file() for name in DSP_FILES):
+        raise ValueError("Build the private DSP runtime and compatibility checker before packaging")
     payload = contents / "Resources" / folder
     payload.mkdir(parents=True)
     sources = {"dx_notebook.dylib": package / binary_folder / "dx_notebook.dylib",
@@ -48,7 +50,7 @@ def build_installer(package, version, identity, brown_app, sdrpp_app=None):
     # Every package must pass the isolated installer rollback/integrity checks.
     with tempfile.TemporaryDirectory(prefix="dx-installer-check-") as temporary:
         test = Path(temporary) / "installer-tests"
-        subprocess.run(["xcrun", "swiftc", "-O", str(ROOT / "installer/InstallerCore.swift"), str(ROOT / "installer/GridLocator.swift"),
+        subprocess.run(["xcrun", "swiftc", "-O", "-module-cache-path", str(Path(temporary) / "module-cache"), str(ROOT / "installer/InstallerCore.swift"), str(ROOT / "installer/HostCompatibility.swift"), str(ROOT / "installer/GridLocator.swift"),
                         str(ROOT / "tests/installer_tests.swift"), "-o", str(test)], check=True)
         subprocess.run([str(test)], check=True)
     app = package / APP_NAME
@@ -57,9 +59,9 @@ def build_installer(package, version, identity, brown_app, sdrpp_app=None):
     (contents / "Resources").mkdir(parents=True)
     executable.parent.mkdir()
     subprocess.run([
-        "xcrun", "swiftc", "-O", "-target", "arm64-apple-macos15.0",
+        "xcrun", "swiftc", "-O", "-target", "arm64-apple-macos15.0", "-module-cache-path", str(ROOT / "build-installer/module-cache"),
         "-file-prefix-map", str(ROOT) + "=.",
-        str(ROOT / "installer/InstallerCore.swift"), str(ROOT / "installer/main.swift"),
+        str(ROOT / "installer/InstallerCore.swift"), str(ROOT / "installer/HostCompatibility.swift"), str(ROOT / "installer/main.swift"),
         str(ROOT / "installer/GridLocator.swift"), str(ROOT / "installer/LocationLookup.swift"),
         "-o", str(executable)
     ], check=True)

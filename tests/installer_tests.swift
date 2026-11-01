@@ -6,7 +6,7 @@ import Darwin
     static func check(_ value: @autoclosure () throws -> Bool, _ message: String) throws {
         guard try value() else { throw InstallError.message("Test failed: " + message) }
     }
-    static func fixture(_ root: URL, standard: Bool = false, modes: Bool = false, js8: Bool = false) throws -> (PluginInstaller, URL, URL) {
+    static func fixture(_ root: URL, standard: Bool = false, modes: Bool = false, js8: Bool = false, dsp: Bool = false) throws -> (PluginInstaller, URL, URL) {
         let profile = root.appendingPathComponent("Profile with spaces and ü")
         let payload = root.appendingPathComponent("Payload")
         let host = root.appendingPathComponent("SDR++Brown.app")
@@ -21,7 +21,7 @@ import Darwin
         try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
             .write(to: host.appendingPathComponent("Contents/Info.plist"))
         var files: [String: String] = [:]
-        for name in PluginInstaller.names + (standard ? ["cty.dat"] : []) + (modes ? PluginInstaller.modeNames : []) + (js8 ? PluginInstaller.js8Names : []) {
+        for name in PluginInstaller.names + (standard ? ["cty.dat"] : []) + (modes ? PluginInstaller.modeNames : []) + (js8 ? PluginInstaller.js8Names : []) + (dsp ? PluginInstaller.dspNames : []) {
             let data = Data(("new-" + name).utf8)
             try data.write(to: payload.appendingPathComponent(name)); files[name] = PluginInstaller.hash(data)
         }
@@ -33,7 +33,11 @@ import Darwin
             "menuElements": [["name": "Radio", "open": false]], "custom": ["unchanged": true]]
         try JSONSerialization.data(withJSONObject: config).write(to: profile.appendingPathComponent("config.json"))
         try Data("preserve reception history".utf8).write(to: profile.appendingPathComponent("history.sqlite3"))
-        return (try PluginInstaller(payload: payload, brownRunning: { false }), profile, host)
+        var engine = try PluginInstaller(payload: payload, brownRunning: { false })
+        // Transaction fixtures use text, not executable Mach-O files. Real loader
+        // failures and runtime isolation are covered by test_host_compatibility.py.
+        engine.compatibilityCheck = { _, _, _ in }
+        return (engine, profile, host)
     }
     static func scenario(_ name: String, body: (URL) throws -> Void) throws {
         let root = fm.temporaryDirectory.appendingPathComponent("dx-installer-test-" + UUID().uuidString)
@@ -47,6 +51,55 @@ import Darwin
         try check(failed, "expected failure")
     }
     static func main() throws {
+        try scenario("private DSP libraries are installed as one verified group") { root in
+            let (engine, profile, host) = try fixture(root, dsp: true)
+            _ = try engine.install(profile: profile, host: host)
+            for name in PluginInstaller.dspNames {
+                let target = profile.appendingPathComponent("plugins/dx-notebook/" + name)
+                try check(Data(contentsOf: target) == Data("new-\(name)".utf8), "private runtime copied")
+                if name == "dx_host_probe" || name.hasSuffix(".dylib") {
+                    try check((fm.attributesOfItem(atPath: target.path)[.posixPermissions] as! NSNumber).intValue == 0o755, "runtime executable")
+                }
+            }
+            try fm.removeItem(at: engine.payload.appendingPathComponent("libkondor_volk.dylib"))
+            try expectFailure { try engine.validatePayload() }
+        }
+        for issue in ["architecture", "missing symbol", "newer OS", "helper runtime"] {
+            try scenario("loader rejects \(issue) before any profile mutation") { root in
+                var (engine, profile, host) = try fixture(root)
+                let config = try Data(contentsOf: profile.appendingPathComponent("config.json"))
+                engine.compatibilityCheck = { _, _, _ in throw InstallError.message(issue) }
+                try expectFailure { _ = try engine.install(profile: profile, host: host) }
+                try check(Data(contentsOf: profile.appendingPathComponent("config.json")) == config, "settings untouched")
+                try check(!fm.fileExists(atPath: profile.appendingPathComponent("dx-notebook-backups").path), "no writes before loader check")
+            }
+        }
+        try scenario("compatibility child failure and timeout are bounded") { root in
+            let fail = root.appendingPathComponent("failure.sh")
+            try Data("#!/bin/sh\necho missing-symbol >&2\nexit 5\n".utf8).write(to: fail)
+            try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: fail.path)
+            do {
+                try HostCompatibility.run(fail, arguments: [])
+                throw InstallError.message("expected runtime rejection")
+            } catch { try check(error.localizedDescription.contains("missing-symbol"), "loader details retained") }
+            // A single process avoids leaving child processes after the timeout.
+            try Data("#!/bin/sh\nexec /bin/sleep 20\n".utf8).write(to: fail)
+            let start = Date()
+            try expectFailure { try HostCompatibility.run(fail, arguments: [], timeout: 0.1) }
+            try check(Date().timeIntervalSince(start) < 2, "checker killed promptly")
+        }
+        for checkpoint in ["staged", "plugin-replaced"] {
+            try scenario("host update during \(checkpoint) preserves settings and rolls back") { root in
+                var (engine, profile, host) = try fixture(root)
+                let config = try Data(contentsOf: profile.appendingPathComponent("config.json"))
+                engine.checkpoint = { if $0 == checkpoint {
+                    try Data("updated host".utf8).write(to: host.appendingPathComponent("Contents/Frameworks/libsdrpp_core.dylib"))
+                } }
+                try expectFailure { _ = try engine.install(profile: profile, host: host) }
+                try check(Data(contentsOf: profile.appendingPathComponent("config.json")) == config, "config preserved")
+                try check(!fm.fileExists(atPath: profile.appendingPathComponent("plugins/dx-notebook").path), "candidate removed")
+            }
+        }
         for standard in [false, true] {
             for oldName in PluginInstaller.previousNames {
                 try scenario("rename from \(oldName) preserves receiver settings and sidebar") { root in

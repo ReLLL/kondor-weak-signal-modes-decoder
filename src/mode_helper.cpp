@@ -60,6 +60,7 @@ void wspr(const std::filesystem::path& binary,const dx::Json& request,const std:
 }
 extern "C" void dx_mode_result(int snr,double dt,double freq,int used,const char* text,int length){if(length>=0&&length<=200)add(snr,dt,freq,used,std::string(text,size_t(length)));}
 int main(int argc,char** argv){
+ if(argc==2&&std::string(argv[1])=="--check-runtime")_exit(0);
  if(argc!=1)return 2;auto wsprBinary=dx::platform::executable(std::filesystem::absolute(argv[0]).parent_path()/"dx_wspr_decoder");
 #ifdef _WIN32
  _setmode(0,_O_BINARY);_setmode(1,_O_BINARY);SetPriorityClass(GetCurrentProcess(),BELOW_NORMAL_PRIORITY_CLASS);

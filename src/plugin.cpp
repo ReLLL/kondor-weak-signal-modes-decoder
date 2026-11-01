@@ -178,6 +178,11 @@ std::string DXNotebook::handleDebugCommand(const std::string& command,const std:
 std::pair<std::string,std::string> DXNotebook::lookupCountry(const std::string& call)const{return countryFor(countries_,call);}
 #if !DX_HOST_SDRSHARP
 MOD_EXPORT void _INIT_(){}
+// Called only by the isolated installer probe, before any module instance exists.
+MOD_EXPORT bool _DX_CHECK_HOST_(){
+ if(std::string(ImGui::GetVersion())!=IMGUI_VERSION)return false;
+ return ImGui::DebugCheckVersionAndDataLayout(IMGUI_VERSION,sizeof(ImGuiIO),sizeof(ImGuiStyle),sizeof(ImVec2),sizeof(ImVec4),sizeof(ImDrawVert),sizeof(ImDrawIdx));
+}
 MOD_EXPORT ModuleManager::Instance* _CREATE_INSTANCE_(std::string name){return new DXNotebook(std::move(name));}
 MOD_EXPORT void _DELETE_INSTANCE_(ModuleManager::Instance* instance){delete instance;}
 MOD_EXPORT void _END_(){}

@@ -45,6 +45,10 @@ bool LocationCheck::load(const std::filesystem::path& file){
  return ready();
 }
 bool LocationCheck::mismatch(const std::string& country,const std::string& grid,const std::string& call,double toleranceKm){
+ // An opaque sender hash cannot support a callsign-country check. This is a
+ // reversible confidence filter, not proof that the reception is false.
+ // Bracketed full callsigns (e.g. WSPR <K1ABC>) are not opaque hashes.
+ if(call=="<...>"||(call.size()>=5&&call.front()=='<'&&call.back()=='>'&&call[1]>='0'&&call[1]<='2'&&call[2]==':'&&std::all_of(call.begin()+3,call.end()-1,[](unsigned char c){return c>='0'&&c<='9';})))return true;
  // No country-centroid guesses, hash reuse or assumptions about portable calls.
  if(country.empty()||call.empty()||call.front()=='<'||call.find('/')!=std::string::npos)return false;
  auto point=gridPoint(grid);auto found=keys_.find(countryOutlineKey(country));if(!point||found==keys_.end())return false;

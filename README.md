@@ -12,7 +12,7 @@ ReLLL develops this plugin's receiver integration, mapping, reception history an
 
 ## Download and install
 
-Version **1.0.53** uses the Kondor name in the plugin and installers. Earlier packages use **Advanced FT8/FT4/WSPR DX Decoder**; existing settings and reception history are preserved when updating.
+Version **1.0.56** bundles matching DSP runtimes, checks host compatibility before installation and starts with the decoder window hidden. Earlier packages use **Advanced FT8/FT4/WSPR DX Decoder**; existing settings and reception history are preserved when updating.
 
 Choose the package for your SDR application and operating system:
 
@@ -121,7 +121,7 @@ Most supported digital weak-signal modes rely on strict UTC time frames. Keep yo
 - **DX map:** Esri street map by default, Humanitarian OpenStreetMap or bundled offline world map. Country names, day/night shading, home marker, continuous SNR coloring (default on, optional), faint country highlights, and dark-blue animated dotted arcs between addressed stations with received location evidence. Arcs follow the host's visible spectrum, including zoom and pan.
 - **Focused reception:** one compact, responsive filter bar shared by the map and all table tabs, with band/mode filters, CQ/general-call and two-way message filters, search, exclusions and time windows. Sender, Target and Mod identify the transmitter, addressed callsign and latest receive mode; numeric ranges cover every signal, age and reception-count column.
 - **Clear visual feedback:** nine-second reception highlight, latest-batch map halos and green age values, green country cells for the three most recently discovered countries, retained across message updates, and bold gold for the farthest station's country and distance.
-- **Reversible false-decode filter:** optional Remove likely falses checks received or cached grids against callsign-country outlines, with border tolerance and portable-station exceptions. It updates existing and new entries in views and reception statistics while preserving saved records. Valid portable or remote stations can also be hidden; this heuristic starts off.
+- **Reversible false-decode filter:** optional Remove likely falses hides unresolved sender hashes and checks identified senders' received/cached grids against callsign-country outlines, with border tolerance and portable-station exceptions. It updates existing and new entries in views and reception statistics while preserving saved records. Valid portable/remote stations and unresolved hash receptions can also be hidden; this heuristic starts off.
 - **Compact controls:** a fixed status bar shows fading operation messages without shifting the workspace. Default sorting restores the newest-first order; Restore defaults resets preferences and layouts after confirmation while preserving reception history and home setup.
 - **Persistent logs:** UTF-8 CSV with UTC dates, callsigns, SNR, frequency, distance and message details. Commas, quotes and line breaks are escaped. Choose the file location and size limit in Settings.
 - **Bounded database history:** the default keeps up to 100,000 saved receptions, then deletes the oldest in background batches until 95,000 remain. Checks run every 30 minutes and at startup. Settings > History > History DB shows record count, database size and retained start date, and lets you change both thresholds or disable the limit. CSV logs have a separate size limit. Saved statistics describe retained history. Larger limits can slow searches and filters.
@@ -129,6 +129,8 @@ Most supported digital weak-signal modes rely on strict UTC time frames. Keep yo
 - **Quick time windows:** choose Last hour, Last 6 hours, Last 24 hours, Last 7 days or Last month in the shared filter bar. All clears the time limit for both views; Reset clears reception filters too. Time windows remain available when saved history is enabled.
 - **Optional GridTracker feed:** direct local UDP using WSJT-X packets, initially off, with `127.0.0.1:2237` ready to enable. No separate bridge is required for this feed.
 - **Quiet defaults:** alert sounds, map marker counts and both saved-history options start off. Individual alert sounds are selectable.
+
+The decoder window starts hidden each time the host launches. Enabled reception, logging and notifications continue in the background. Click Open Kondor Decoder in the host's plugin panel to show current data.
 
 Closing the decoder window keeps reception, logging, alerts and integrations running while the sidebar switch is on. Open brings the window forward with current data and preserves its size and position. Each host starts with empty visible views and fresh session statistics by default. **Use saved history for stats** includes retained receptions in the totals. **Use saved history for everything** also restores the map, table and first-heard times. Both start off and load in the background; uptime always measures this session's active decoding. Live reception, table/map updates and logging continue while history is enabled. Clear asks for confirmation and preserves saved logs. Its checked **Reset stats** option returns to session mode and turns off both history options.
 

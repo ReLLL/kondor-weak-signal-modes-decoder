@@ -36,7 +36,9 @@ struct PluginInstaller {
     let manifest: PayloadManifest
     var brownRunning: () throws -> Bool
     var checkpoint: (String) throws -> Void = { _ in }
-    var names: [String] { Self.names + (manifest.hostBundleID == "oorg.sdrpp.sdrpp" ? ["cty.dat"] : []) + (manifest.files["dx_modes_decoder"] != nil ? Self.modeNames : []) + (manifest.files["dx_js8_decoder"] != nil ? Self.js8Names : []) }
+    static let dspNames = ["libkondor_volk.dylib", "libkondor_fftw3f.dylib", "COPYING.DSP", "dsp-runtime.json", "dx_host_probe"]
+    var compatibilityCheck: (URL, URL, [String]) throws -> Void = { try HostCompatibility.validate(payload: $0, host: $1, names: $2) }
+    var names: [String] { Self.names + (manifest.hostBundleID == "oorg.sdrpp.sdrpp" ? ["cty.dat"] : []) + (manifest.files["dx_modes_decoder"] != nil ? Self.modeNames : []) + (manifest.files["dx_js8_decoder"] != nil ? Self.js8Names : []) + (manifest.files["dsp-runtime.json"] != nil ? Self.dspNames : []) }
 
     static func hash(_ data: Data) -> String {
         SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
@@ -78,8 +80,13 @@ struct PluginInstaller {
         try regularFile(core)
         for name in manifest.hostLibraries {
             guard !name.contains("/"), name.hasSuffix(".dylib") else { throw InstallError.message("The installer package has an invalid library list.") }
-            try regularFile(app.appendingPathComponent("Contents/Frameworks/" + name))
+            let library = app.appendingPathComponent("Contents/Frameworks/" + name)
+            guard manager.fileExists(atPath: library.path) else {
+                throw InstallError.message("\(manifest.hostName) is missing its required runtime \(name). Reinstall the complete radio app, then retry. Nothing was changed.")
+            }
+            try regularFile(library)
         }
+        try compatibilityCheck(payload, app, names)
     }
 
     func validateHomeGrid(_ grid: String) throws {
@@ -142,6 +149,8 @@ struct PluginInstaller {
         }
         try regularFile(config)
         try validatePayload()
+        let hostCore = host.appendingPathComponent("Contents/Frameworks/libsdrpp_core.dylib")
+        let validatedCore = Self.hash(try Data(contentsOf: hostCore))
         try validateHost(host)
         guard try !brownRunning() else { throw InstallError.message("Quit \(manifest.hostName) before installing. It saves settings when it closes.") }
         let original = try Data(contentsOf: config)
@@ -181,13 +190,16 @@ struct PluginInstaller {
             guard Self.hash(try Data(contentsOf: destination)) == manifest.files[name] else {
                 throw InstallError.message("A copied file failed verification. Your settings were not changed.")
             }
-            try manager.setAttributes([.posixPermissions: name.hasSuffix(".dylib") || name == "dx_decoder" || name == "dx_modes_decoder" || name == "dx_wspr_decoder" || name == "dx_js8_decoder" ? 0o755 : 0o644], ofItemAtPath: destination.path)
+            try manager.setAttributes([.posixPermissions: name.hasSuffix(".dylib") || name == "dx_host_probe" || name == "dx_decoder" || name == "dx_modes_decoder" || name == "dx_wspr_decoder" || name == "dx_js8_decoder" ? 0o755 : 0o644], ofItemAtPath: destination.path)
         }
         let stagedConfig = stage.appendingPathComponent("config.json")
         try updated.write(to: stagedConfig)
         let permissions = try manager.attributesOfItem(atPath: config.path)[.posixPermissions] ?? 0o600
         try manager.setAttributes([.posixPermissions: permissions], ofItemAtPath: stagedConfig.path)
         try checkpoint("staged")
+        guard Self.hash(try Data(contentsOf: hostCore)) == validatedCore else {
+            throw InstallError.message("The radio app changed during installation. Nothing was replaced. Retry with the updated app.")
+        }
         guard try !brownRunning(), try Data(contentsOf: config) == original else {
             throw InstallError.message("The radio application started or its settings changed during installation. Nothing was replaced. Quit it and retry.")
         }
@@ -198,6 +210,9 @@ struct PluginInstaller {
             if hadPlugin { try manager.moveItem(at: target, to: oldPlugin); movedOld = true }
             try manager.moveItem(at: stagedPlugin, to: target); movedNew = true
             try checkpoint("plugin-replaced")
+            guard Self.hash(try Data(contentsOf: hostCore)) == validatedCore else {
+                throw InstallError.message("The radio app changed during installation. Installation was canceled; retry with the updated app.")
+            }
             guard try !brownRunning(), try Data(contentsOf: config) == original else {
                 throw InstallError.message("The radio application started or its settings changed. Installation was canceled.")
             }

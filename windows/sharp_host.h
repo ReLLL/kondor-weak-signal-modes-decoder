@@ -12,7 +12,7 @@ namespace dx {
 struct SharpAudio {Json header;std::vector<std::complex<float>> iq;};
 class SharpHost {
 public:
- std::filesystem::path root,binary;std::atomic<double> center{0},frequency{0},rate{0},width{0};std::atomic<bool> playing{false},replay{false},show{true},alive{true};
+ std::filesystem::path root,binary;std::atomic<double> center{0},frequency{0},rate{0},width{0};std::atomic<bool> playing{false},replay{false},show{false},alive{true};
  std::function<void(SharpAudio)> consume;
  void start();void finish();void plan(Json);
 private:

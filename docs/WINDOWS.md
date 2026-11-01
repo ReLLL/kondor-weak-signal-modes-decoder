@@ -2,7 +2,7 @@
 
 Read when building, installing or validating the Windows SDR# adapter.
 
-The Windows target adds an SDR# adapter and a separate native decoder window. It reuses the map, tables, filters, history, country lookup, notifications and decoder engines. The macOS SDR++ and SDR++Brown integrations remain separate.
+The Windows v1.0.56 preview adds an SDR# adapter and a separate native decoder window. It reuses the map, tables, filters, history, country lookup, notifications and decoder engines. The macOS SDR++ and SDR++Brown integrations remain separate.
 
 Target: **SDR# x64 .NET 9**, using the official Airspy SDK. Validation uses **SDR# 1.0.0.1921** in Windows 11 ARM64 under Parallels, through Windows x64 emulation. The actual host decoded a synthetic FT8 IQ recording into the table, receiver distances, compass and waterfall notifications. Reception continued with the decoder window closed; reopening preserved current data. This target does not cover x86 or .NET 8 SDR# builds. The [GitHub release](https://github.com/ReLLL/kondor-weak-signal-modes-decoder/releases/latest) includes a Windows preview ZIP alongside the macOS packages. Official SDK and host archive hashes are recorded in `windows/source-pin.json`.
 

@@ -56,9 +56,9 @@ In the profile's `config.json`, register the absolute path to `dx_notebook.dylib
 
 ### Windows: SDR# / SDR Sharp
 
-The Windows preview has decoded an FT8 IQ recording in **SDR# 1.0.0.1921** on Windows 11 ARM64 using x64 emulation. All seven supported modes also pass Windows decoder fixtures. Closing and reopening the decoder window preserves reception and current data while SDR# is playing.
+The Windows **v1.0.56 preview** has decoded an FT8 IQ recording in **SDR# 1.0.0.1921** on Windows 11 ARM64 using x64 emulation. All seven supported modes also pass Windows decoder fixtures. Closing and reopening the decoder window preserves reception and current data while SDR# is playing.
 
-[Download the Windows preview ZIP](https://github.com/ReLLL/kondor-weak-signal-modes-decoder/releases/download/v1.0.53/kondor-weak-signal-modes-decoder-1.0.53-sdrsharp-windows-x64-preview.zip). Installation takes these steps:
+[Download the Windows preview ZIP](https://github.com/ReLLL/kondor-weak-signal-modes-decoder/releases/download/v1.0.56/kondor-weak-signal-modes-decoder-1.0.56-sdrsharp-windows-x64-preview.zip). Installation takes these steps:
 
 1. Install the **x64 .NET 9** version of [SDR# from Airspy](https://airspy.com/download/) and check that SDR# opens normally.
 2. Extract the complete Windows decoder ZIP, then close SDR#.

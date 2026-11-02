@@ -27,6 +27,7 @@ std::vector<unsigned char> homeIconPixels(){return icon("1f3e0.png");}
 std::vector<unsigned char> trophyIconPixels(){return icon("1f3c6.png");}
 std::vector<unsigned char> flagIconPixels(const std::string& code){if(code.empty())return icon("1f3f3.png");if(code.size()!=2||code[0]<'A'||code[0]>'Z'||code[1]<'A'||code[1]>'Z')return {};std::ostringstream name;name<<std::hex<<(0x1f1e6+code[0]-'A')<<'-'<<(0x1f1e6+code[1]-'A')<<".png";return icon(name.str());}
 void openCallsignLookup(const std::string& call,int provider){open(callsignLookupUrl(call,provider));}
+void openFeedbackProfile(){open("https://x.com/FoxOnTheRunTr");}
 void openMapCredit(int index){const char* links[]={"https://www.openstreetmap.org/copyright","https://www.hotosm.org","https://www.openstreetmap.fr","https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer"};if(index>=0&&index<4)open(links[index]);}
 std::optional<std::string> chooseCsvLog(const std::string& current){
  wchar_t buffer[32768]{};auto path=std::filesystem::u8path(current).wstring();if(path.size()<32768)std::copy(path.begin(),path.end(),buffer);

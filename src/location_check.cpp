@@ -25,6 +25,9 @@ bool LocationCheck::load(const std::filesystem::path& file){
   }
  }
  if(auto found=keys_.find("UNITEDSTATESOFAMERICA");found!=keys_.end())keys_["UNITEDSTATES"]=found->second;
+ // The Italy outline includes Sicily; keep the DXCC name, but permit this
+ // conservative geographic check rather than silently skipping IT9 grids.
+ if(auto found=keys_.find("ITALY");found!=keys_.end())keys_["SICILY"]=found->second;
  // The short map label does not distinguish the two Congo countries.
  distanceKeys_.erase("CONGO");
  // Explicit aliases only: these apply to the optional country-distance view,

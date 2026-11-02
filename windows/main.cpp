@@ -24,7 +24,7 @@ int main(){try{
  core::configManager.load();
  SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
  if(!glfwInit())throw std::runtime_error("Windows graphics initialization failed");glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR,3);glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR,0);glfwWindowHint(GLFW_VISIBLE,GLFW_FALSE);
- auto* window=glfwCreateWindow(1400,900,DX_PRODUCT_NAME " - SDR#",nullptr,nullptr);if(!window){glfwTerminate();throw std::runtime_error("OpenGL 3 support is required");}
+ auto* window=glfwCreateWindow(1400,900,DX_WINDOW_TITLE " - SDR#",nullptr,nullptr);if(!window){glfwTerminate();throw std::runtime_error("OpenGL 3 support is required");}
  glfwMakeContextCurrent(window);glfwSwapInterval(1);IMGUI_CHECKVERSION();ImGui::CreateContext();ImGui::StyleColorsDark();auto& io=ImGui::GetIO();io.ConfigFlags|=ImGuiConfigFlags_NavEnableKeyboard;
  auto settings=(root/"interface.ini").u8string();io.IniFilename=settings.c_str();
  static const ImWchar ranges[]={0x20,0x024f,0x2000,0x27ff,0};ImFontConfig font{};font.SizePixels=15;io.Fonts->AddFontFromFileTTF("C:/Windows/Fonts/segoeui.ttf",15,&font,ranges);

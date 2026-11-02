@@ -16,6 +16,9 @@
 #include <cstdio>
 #include <chrono>
 #include <utils/opengl_include_code.h>
+#if defined(__linux__)
+#include "native.h"
+#endif
 #if DX_HOST_BROWN
 namespace utils {void loadCTY(const char*,const char*,CTY&);}
 #endif
@@ -26,7 +29,7 @@ std::pair<std::string,std::string> countryFor(const DXCountryDatabase& database,
  for(const auto& entity:database.dxcc)for(const auto& prefix:entity.prefixes)if(prefix.exact&&call==prefix.value)return {dx::countryName(entity.name),entity.continent};
  // Portable operating prefixes override the home call. Routine /P and /M
  // suffixes do not claim an operating country.
- auto slash=call.find('/');if(slash!=std::string::npos){auto first=call.substr(0,slash),last=call.substr(slash+1);auto shortPrefix=[](const std::string& s){return s.size()<=4&&s!="P"&&s!="M"&&s!="MM"&&s!="AM"&&s!="QRP"&&s.find_first_of("ABCDEFGHIJKLMNOPQRSTUVWXYZ")!=std::string::npos;};if(shortPrefix(first))call=first;else if(shortPrefix(last))call=last;else call=first;}
+ call=dx::operatingCall(call);
  bool ambiguous=false;for(const auto& entity:database.dxcc)for(const auto& prefix:entity.prefixes)if(!prefix.exact&&call.rfind(prefix.value,0)==0){if(prefix.value.size()>length){selected=&entity;length=prefix.value.size();ambiguous=false;}else if(prefix.value.size()==length&&selected&&selected->name!=entity.name)ambiguous=true;}
  if(!selected||ambiguous)return {};return {dx::countryName(selected->name),selected->continent};
 }
@@ -64,11 +67,15 @@ DXNotebook::DXNotebook(std::string name):name_(std::move(name)){
 #if DX_HOST_SDRSHARP
  root_=dx::sharpHost().root;
 #else
+#if defined(__linux__)
+ const char* dataRoot=std::getenv("ADVANCED_DX_DATA_ROOT");root_=dataRoot&&*dataRoot?std::filesystem::path(dataRoot):std::filesystem::path(std::string(core::args["root"]))/"dx-notebook";
+#else
  const char* dataRoot=std::getenv("ADVANCED_DX_DATA_ROOT");root_=dataRoot&&*dataRoot?std::filesystem::path(dataRoot):std::filesystem::path(std::getenv("HOME"))/
 #if DX_HOST_BROWN
  "Library/Application Support/SDR++Brown DX Notebook";
 #else
  "Library/Application Support/SDR++ DX Notebook";
+#endif
 #endif
 #endif
 #if DX_HOST_BROWN
@@ -96,6 +103,7 @@ DXNotebook::DXNotebook(std::string name):name_(std::move(name)){
   const auto& props=f["properties"];auto flagCode=props.value("ISO_A2_EH",props.value("ISO_A2",""));if(flagCode.size()==2&&flagCode[0]>='A'&&flagCode[0]<='Z'&&flagCode[1]>='A'&&flagCode[1]<='Z')for(const char* key:{"NAME_EN","NAME","ADMIN","NAME_LONG","FORMAL_EN"})if(props.contains(key)&&props[key].is_string())flagCodes_[dx::countryOutlineKey(props[key].get<std::string>())]=flagCode;for(const char* key:{"NAME_EN","NAME","ADMIN","NAME_LONG","FORMAL_EN"})if(props.contains(key)&&props[key].is_string())country.keys.push_back(dx::countryOutlineKey(props[key].get<std::string>()));for(const auto& polygon:country.polygons){country.offlineMeshes.push_back(dx::countryMesh(polygon,false));country.onlineMeshes.push_back(dx::countryMesh(polygon,true));}dx::Point fallback{props.value("LABEL_Y",0.),props.value("LABEL_X",0.)};if(!country.polygons.empty())country.label=dx::countryCenter(country.polygons[country.labelPolygon][0],fallback);mapCountries_.push_back(std::move(country));
   const auto& p=f["properties"];if(p.contains("LABEL_X")&&p.contains("LABEL_Y"))labels_.push_back({p.value("NAME_EN",p.value("NAME","")),{p["LABEL_Y"].get<double>(),p["LABEL_X"].get<double>()}});
  }
+ initialDistanceMiles_=dx::northAmericanLocation(home_,world);
  flagCodes_["UNITEDSTATES"]="US";
 #if !DX_HOST_SDRSHARP
 #if DX_HOST_BROWN
@@ -126,6 +134,9 @@ DXNotebook::DXNotebook(std::string name):name_(std::move(name)){
 #endif
 }
 DXNotebook::~DXNotebook(){
+#if defined(__linux__)
+ dx::releaseLinuxShareClipboard();
+#endif
 #if !DX_HOST_SDRSHARP
 #if DX_HOST_BROWN
  gui::waterfall.afterWaterfallDraw.unbindHandler(&cornerHandler_);gui::mainWindow.onWaterfallDrawn.unbindHandler(&drawHandler_);
@@ -134,7 +145,7 @@ DXNotebook::~DXNotebook(){
 #endif
  gui::waterfall.onInputProcess.unbindHandler(&inputHandler_);gui::menu.removeEntry(name_);
 #endif
- for(const auto& icon:cornerIcons_)if(icon.second){auto texture=icon.second;glDeleteTextures(1,&texture);}channels_.clear();engine_.reset();if(homeIcon_)glDeleteTextures(1,&homeIcon_);
+ for(const auto& icon:cornerIcons_)if(icon.second){auto texture=icon.second;glDeleteTextures(1,&texture);}channels_.clear();engine_.reset();if(homeIcon_)glDeleteTextures(1,&homeIcon_);if(shareTexture_)glDeleteTextures(1,&shareTexture_);
 }
 void DXNotebook::enable(){enabled_=true;open_=true;present_=true;mapHomePending_=true;engine_->resetStats();if(settingsLoaded_&&clearOnStart_){if(historyAll_)historyTableCleared_=historyMapCleared_=0;tableCleared_=mapCleared_=int64_t(time(nullptr))+1;selected_.reset();selectedCountry_.clear();engine_->selectCountry("");tableQuery_.offset=0;save();refresh();}}
 void DXNotebook::disable(){enabled_=false;cornerVisible_=false;channels_.clear();engine_->invalidateAdditional();engine_->active(false);}

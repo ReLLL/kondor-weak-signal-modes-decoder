@@ -58,7 +58,7 @@ private:
  bool manageSaved(Store& store);
  std::filesystem::path root_,worldFile_;Helper helper_;Point home_;
  std::function<std::pair<std::string,std::string>(const std::string&)> country_;
- mutable std::mutex mutex_;std::condition_variable cv_;std::thread decoder_,writer_;std::atomic<bool> stopping_{false};
+ mutable std::mutex mutex_;std::condition_variable cv_;std::thread decoder_,writer_;std::atomic<bool> stopping_{false};std::atomic<int> decodeDepth_{defaultFtDecodeDepth};
  std::deque<Job> jobs_;std::deque<Decode> writes_;std::shared_ptr<const Snapshot> snapshot_=std::make_shared<Snapshot>();
  Helper modeHelper_;std::thread modeDecoder_;std::deque<Job> modeJobs_;uint64_t modeContext_=1;std::atomic<bool> modeCancel_{false},modeDone_{false};
  Helper js8Helper_;std::thread js8Decoder_;std::deque<Job> js8Jobs_;std::atomic<bool> js8Cancel_{false},js8Done_{false};

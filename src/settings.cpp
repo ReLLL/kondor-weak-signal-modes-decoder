@@ -45,6 +45,11 @@ void DXNotebook::settingsWindow() {
    if(ImGui::InputText("From",customSince_,sizeof(customSince_))){customSinceEpoch_=dx::localDateTimeParse(customSince_).value_or(0);changed=true;}if(ImGui::InputText("To",customUntil_,sizeof(customUntil_))){customUntilEpoch_=dx::localDateTimeParse(customUntil_,true).value_or(0);changed=true;}ImGui::TextDisabled("YYYY-MM-DD HH:MM:SS | Local time");if((customSince_[0]&&!customSinceEpoch_)||(customUntil_[0]&&!customUntilEpoch_))ImGui::TextWrapped("Enter valid local dates. Times skipped or repeated by daylight-saving changes are not accepted.");
    if(ImGui::Button("Use range for table and map")){tableTime_=12;changed=true;}
   }else if(settingsPage_==1){
+   const char* depths[]={"Fast","Normal","Deep (default)"};int depth=ftDecodeDepth_-1;if(ImGui::Combo("FT8 / FT4 decode depth",&depth,depths,3)){ftDecodeDepth_=depth+1;changed=true;}if(ImGui::IsItemHovered())ImGui::SetTooltip("Applies to FT8 and FT4. Your selection is remembered. Low-confidence protections remain active at every depth. Unflagged decodes can still be wrong.");
+   ImGui::TextWrapped("%s","Fast: least processing effort; may miss weaker signals.");
+   ImGui::TextWrapped("%s","Normal: moderate processing effort and recovery.");
+   ImGui::TextWrapped("%s","Deep: most thorough recovery; more CPU/time and potentially more false decodes.");
+   ImGui::TextDisabled("Low-confidence protections remain active at every depth.");ImGui::Spacing();
    ImGui::TextUnformatted("Enabled modes");changed|=ImGui::Checkbox("FT8",&ft8_);ImGui::SameLine();changed|=ImGui::Checkbox("FT4",&ft4_);
    if(dx::modeSpec("WSPR")->available||dx::modeSpec("JS8")->available)changed|=modeSettings();
    ImGui::Spacing();ImGui::TextUnformatted("Custom frequencies");ImGui::InputText("Dial frequency in Hz",customDial_,sizeof(customDial_));
@@ -98,7 +103,7 @@ void DXNotebook::settingsWindow() {
    if(ImGui::InputInt("UDP port",&gridTrackerPort_)){gridTrackerPort_=std::clamp(gridTrackerPort_,1,65535);changed=true;}
    ImGui::TextWrapped("Local default: 127.0.0.1, port 2237. Match GridTracker's receive address and port for another setup.");
    ImGui::Separator();changed|=ImGui::Checkbox("Replay recent receptions on reconnect",&gridTrackerReplay_);ImGui::BeginDisabled(!gridTrackerReplay_);changed|=ImGui::SliderInt("Replay window (minutes)",&gridTrackerMinutes_,1,120);ImGui::EndDisabled();ImGui::TextWrapped("Live plugin receptions from the current UTC day. Saved history and the CSV log stay intact when views are cleared.");
-   auto status=engine_->snapshot()->gridTracker;ImGui::Separator();if(!status.enabled)ImGui::TextDisabled("Off");else if(!status.error.empty())ImGui::TextWrapped("GridTracker: %s",status.error.c_str());else ImGui::TextWrapped("%s | %llu receptions sent",status.lastReply&&time(nullptr)-status.lastReply<30?"GridTracker replied":"Sending UDP",status.sent);
+   auto status=engine_->snapshot()->gridTracker;ImGui::Separator();if(!status.enabled)ImGui::TextDisabled("Off");else if(!status.error.empty())ImGui::TextWrapped("GridTracker: %s",status.error.c_str());else ImGui::TextWrapped("%s | %llu receptions sent",status.lastReply&&time(nullptr)-status.lastReply<30?"GridTracker replied":"Sending UDP",static_cast<unsigned long long>(status.sent));
    if(status.enabled)ImGui::TextDisabled("UDP delivery is not acknowledged by every receiver.");
    ImGui::TextWrapped("Separate frequency and mode feeds keep bands correct. This sends reception messages; it does not log completed contacts or control transmission.");
    if(ImGui::Button("Restore local defaults")){gridTrackerEnabled_=false;gridTrackerHost_="127.0.0.1";std::snprintf(gridTrackerAddress_,sizeof(gridTrackerAddress_),"%s",gridTrackerHost_.c_str());gridTrackerPort_=2237;gridTrackerReplay_=true;gridTrackerMinutes_=30;changed=true;}

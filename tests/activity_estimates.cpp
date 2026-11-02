@@ -35,7 +35,7 @@ int main(int argc,char** argv){
  std::set<std::string> all{"DL8AAA"};for(const auto& [mode,call]:modes)all.insert(call);CHECK(check(q,all));
  CHECK(engine.snapshot()->retention.firstUtc==now-1200&&engine.snapshot()->statsHistory);
  CHECK(!dx::historySpanText(engine.snapshot()->statsHistory,engine.snapshot()->retention.firstUtc,now).empty());
- CHECK(engine.snapshot()->direction.countryEstimates==7&&dx::activityBearingText(engine.snapshot()->direction).rfind("[C] ",0)==0);
+ CHECK(engine.snapshot()->direction.countryEstimates==7&&dx::activityBearingText(engine.snapshot()->direction).find("[C]")==std::string::npos);
  for(const auto& d:engine.snapshot()->directionStations){CHECK(d.bearing&&d.km);if(d.identity.transmitter=="DL8AAA")CHECK(d.countryDistanceGrid.empty()&&d.position&&d.gridSource=="cached");else{CHECK(!d.countryDistanceGrid.empty()&&!d.position&&d.identity.grid.empty());auto expected=dx::distanceBearing(home,*dx::gridPoint(d.countryDistanceGrid));CHECK(std::abs(*d.bearing-expected.second)<1e-9&&std::abs(*d.km-expected.first)<1e-9);}}
  for(const auto& row:engine.snapshot()->table)if(!row.decode.countryDistanceGrid.empty())CHECK(!row.decode.bearing&&!row.decode.position);
  for(const auto& [mode,call]:modes){q.filter.mode=mode;std::set<std::string> expected{call};if(mode=="FT4")expected.insert("DL8AAA");CHECK(check(q,expected));}

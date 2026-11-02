@@ -33,6 +33,7 @@ void openMapCredit(int index){
 void openCallsignLookup(const std::string& call,int provider){auto link=callsignLookupUrl(call,provider);if(link.empty())return;@autoreleasepool{
  NSURL* url=[NSURL URLWithString:[NSString stringWithUTF8String:link.c_str()]];[[NSWorkspace sharedWorkspace] openURL:url];
 }}
+void openFeedbackProfile(){@autoreleasepool{[[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"https://x.com/FoxOnTheRunTr"]];}}
 std::optional<std::string> chooseCsvLog(const std::string& current){@autoreleasepool{
  NSSavePanel* panel=[NSSavePanel savePanel];panel.title=@"Reception CSV log";panel.canCreateDirectories=YES;
  NSString* path=[NSString stringWithUTF8String:current.c_str()];panel.directoryURL=[NSURL fileURLWithPath:[path stringByDeletingLastPathComponent]];panel.nameFieldStringValue=[path lastPathComponent];panel.allowedFileTypes=@[@"csv"];

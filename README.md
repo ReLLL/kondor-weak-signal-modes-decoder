@@ -10,31 +10,33 @@ This plugin builds on the weak-signal protocols, decoder algorithms and software
 
 ReLLL develops this plugin's receiver integration, mapping, reception history and interface. See [full credits](CREDITS.md) for upstream projects, authors and source references, and [third-party notices](THIRD_PARTY_NOTICES.md) for licenses. Upstream credits do not imply endorsement.
 
+FT8/FT4 reception tables and details show decoder confidence. Questionable decodes remain in history for inspection but do not establish map spots, distance records or DX activity bearings. See [confidence and reception reliability](docs/DECODER_RELIABILITY.md).
+
 ## Download and install
 
-Version **1.0.56** bundles matching DSP runtimes, checks host compatibility before installation and starts with the decoder window hidden. Earlier packages use **Advanced FT8/FT4/WSPR DX Decoder**; existing settings and reception history are preserved when updating.
+Version **1.0.67** adds Linux source installation, confidence-aware FT8/FT4 reception and live social-sharing images. It bundles matching runtimes, checks host compatibility and starts with the decoder window hidden. Earlier packages use **Advanced FT8/FT4/WSPR DX Decoder**; existing settings and reception history are preserved when updating.
 
-Choose the package for your SDR application and operating system:
+Choose your operating system, then follow its steps below. Each download contains the files for that platform.
 
-| SDR application | Operating system / architecture | Verified host | Availability |
-| --- | --- | --- | --- |
-| SDR++ | macOS 15 or later, Apple Silicon (arm64) | SDR++ 1.2.0, May 28, 2024 build; tested on macOS 26 | Published macOS installer |
-| SDR++Brown | macOS 15 or later, Apple Silicon (arm64) | SDR++Brown 1.2.1, August 4, 2026 build; tested on macOS 26 | Published macOS installer |
-| SDR# / SDR Sharp | Windows 11, x64 .NET 9 host; also tested under x64 emulation on Windows 11 ARM64 | SDR# 1.0.0.1921 in Parallels | Windows preview ZIP |
-
-The Windows adapter targets the .NET 9 x64 SDR# application. The macOS installer contains separate SDR++ and SDR++Brown integrations.
+| Operating system | SDR application | Start here |
+| --- | --- | --- |
+| macOS | SDR++ or SDR++Brown | [Download DMG](https://github.com/ReLLL/kondor-weak-signal-modes-decoder/releases/download/v1.0.67/kondor-weak-signal-modes-decoder-1.0.67-installer-macos-arm64.dmg) · [Install steps](#macos-sdr-and-sdrbrown) |
+| Windows | SDR# / SDR Sharp | [Download preview ZIP](https://github.com/ReLLL/kondor-weak-signal-modes-decoder/releases/download/v1.0.67/kondor-weak-signal-modes-decoder-1.0.67-sdrsharp-windows-x64-preview.zip) · [Install steps](#windows-sdr--sdr-sharp) |
+| Linux | SDR++ | [Download source installer](https://github.com/ReLLL/kondor-weak-signal-modes-decoder/releases/download/v1.0.67/kondor-weak-signal-modes-decoder-1.0.67-linux-source-installer.tar.gz) · [Install steps](#linux-native-source-installer) |
 
 **Before receiving, enable automatic clock synchronization.** These modes use timed reception windows; an inaccurate clock can prevent decoding even when signals are visible. See [clock setup and troubleshooting](#clock-synchronization-before-receiving).
 
 ### macOS: SDR++ and SDR++Brown
 
-[Download the latest release](https://github.com/ReLLL/kondor-weak-signal-modes-decoder/releases/latest). The installer supports **both SDR++ and SDR++Brown** on **Apple Silicon Macs running macOS 15 or later**. Verified hosts: **SDR++ 1.2.0, May 28, 2024 build** and **SDR++Brown 1.2.1, August 4, 2026 build**. Both were tested on macOS 26.
+**Requirements:** Apple Silicon Mac, macOS 15 or later, and SDR++ or SDR++Brown. Verified on macOS 26 with SDR++ 1.2.0 (May 28, 2024) and SDR++Brown 1.2.1 (August 4, 2026).
+
+**Recommended download:** [macOS installer DMG](https://github.com/ReLLL/kondor-weak-signal-modes-decoder/releases/download/v1.0.67/kondor-weak-signal-modes-decoder-1.0.67-installer-macos-arm64.dmg). Developer ID signed, notarized and stapled.
 
 1. Install [SDR++](https://github.com/AlexandreRouma/SDRPlusPlus/releases/tag/nightly) or [SDR++Brown](https://sdrpp-brown.san.systems/) in **Applications**. Skip this if you already have the supported app installed.
 2. Download and open `installer-macos-arm64.dmg`, then open **Install Kondor Weak Signal Modes Decoder**. The ZIP includes the same installer if you prefer to extract it.
-3. The installer detects the installed radio app. If both are installed, choose the one you want. An existing **Home locator** is prefilled. If it is empty, the installer can request macOS location permission and suggest a grid; confirm that the estimate matches your receiver's location, or use **Find grid on map**. Click **Install**. First-run settings are prepared automatically if needed; an open host is asked to quit normally before its configuration is updated.
+3. Choose your radio app. Check the prefilled **Home locator**, or use **Find grid on map**. An empty locator can also receive a suggestion through macOS Location Services. Click **Install**; the installer prepares the profile and asks an open host to quit safely if needed.
 4. Click **Open SDR++** or **Open SDR++Brown**. Open **Kondor Weak Signal Modes Decoder** from the sidebar.
-5. If you skipped the home locator, set your actual **Maidenhead grid** before relying on distances and bearings. In **Brown**, expand the left **Source** panel and find **My Grid** below **Operator Callsign**. Enter a four- or six-character locator; Brown shows coordinates beside a valid grid, or **Invalid**. In **standard SDR++**, open the plugin's **Settings > General > Maidenhead grid**; four, six or eight characters are accepted. For example, `KM69` and `KM69xx` show the format; use your own locator. More characters give a smaller location area. Distances and bearings use the grid center. Standard SDR++ keeps distances and the home marker unavailable until a valid home locator is configured.
+5. If you skipped the locator, set it before using distances or bearings. In **Brown**, expand **Source > My Grid**, below **Operator Callsign**. In **SDR++**, use Kondor's **Settings > General > Maidenhead grid**. [Find your own six-character grid](#finding-your-home-grid-first-time-setup); do not copy an example grid.
 6. Start your SDR and tune a capture covering a supported FT8, FT4 or WSPR dial frequency. Eligible presets show **Receiving**.
 
 No Python, Terminal, Homebrew, developer tools or administrator password is needed for the native installer. It verifies packaged files and the selected host's required libraries, backs up the configuration and any previous plugin, and installs outside the host's signed application. Each host has its own binary, profile and reception history. Settings and logs are preserved; **Choose profile...** supports a non-default profile. [Installation and removal](docs/INSTALL.md).
@@ -56,9 +58,9 @@ In the profile's `config.json`, register the absolute path to `dx_notebook.dylib
 
 ### Windows: SDR# / SDR Sharp
 
-The Windows **v1.0.56 preview** has decoded an FT8 IQ recording in **SDR# 1.0.0.1921** on Windows 11 ARM64 using x64 emulation. All seven supported modes also pass Windows decoder fixtures. Closing and reopening the decoder window preserves reception and current data while SDR# is playing.
+**Requirements:** the **x64 .NET 9** edition of SDR# from Airspy. Validated with SDR# 1.0.0.1921 on Windows 11 ARM64 using x64 emulation, including recorded FT8 reception, close/reopen and worker recovery. All seven modes pass Windows decoder fixtures. This preview does not target x86 or .NET 8 SDR#.
 
-[Download the Windows preview ZIP](https://github.com/ReLLL/kondor-weak-signal-modes-decoder/releases/download/v1.0.56/kondor-weak-signal-modes-decoder-1.0.56-sdrsharp-windows-x64-preview.zip). Installation takes these steps:
+[Download the Windows preview ZIP](https://github.com/ReLLL/kondor-weak-signal-modes-decoder/releases/download/v1.0.67/kondor-weak-signal-modes-decoder-1.0.67-sdrsharp-windows-x64-preview.zip). Installation takes these steps:
 
 1. Install the **x64 .NET 9** version of [SDR# from Airspy](https://airspy.com/download/) and check that SDR# opens normally.
 2. Extract the complete Windows decoder ZIP, then close SDR#.
@@ -67,7 +69,7 @@ The Windows **v1.0.56 preview** has decoded an FT8 IQ recording in **SDR# 1.0.0.
 5. In the decoder, set **Settings > General > Maidenhead grid** to your receiver's location. Find the locator with the [K7FRY grid map](https://k7fry.com/grid/): click your receiver's location and copy its first six characters.
 6. Start the radio and tune the captured spectrum to a supported dial frequency. FT8, FT4 and WSPR are enabled initially. Closing the decoder window keeps reception running; its Open button brings it back.
 
-Windows settings, reception CSV, SQLite history and cached maps are stored under `%LOCALAPPDATA%\Advanced DX Decoder\SDRSharp`. Updates preserve these files. See the [Windows guide](docs/WINDOWS.md) for build steps, installation details and validation limits. Current macOS downloads remain available through the latest release above.
+Windows settings, reception CSV, SQLite history and cached maps are stored under `%LOCALAPPDATA%\Advanced DX Decoder\SDRSharp`. Updates preserve these files. See the [Windows guide](docs/WINDOWS.md) for build steps, installation details and validation limits.
 
 #### Manual Windows installation: copy files yourself
 
@@ -75,6 +77,26 @@ Windows settings, reception CSV, SQLite history and cached maps are stored under
 2. Copy the ZIP's **top-level `AdvancedDx` folder** into the `Plugins` folder beside `SDRSharp.dotnet9.exe`. The result includes `Plugins\AdvancedDx\SDRSharp.AdvancedDx.dll` and `Plugins\AdvancedDx\AdvancedDx\dx_sdrsharp.exe`. Keep the nested folder and all its DLLs, helpers, maps and icons together.
 3. If upgrading, move the previous `Plugins\AdvancedDx` folder to a backup **outside `Plugins`** before copying. If `SDRSharp.config` sets `core.pluginsDirectory` to another location, use that plugins folder instead.
 4. Reopen SDR#, enable the decoder in its plugins panel and set your home grid as above. No `Plugins.xml` entry is needed. Reception history and preferences remain in the separate data folder above.
+
+### Linux: native source installer
+
+**Requirements:** a Linux desktop, Internet access, Git and Python 3. The installer builds natively for your CPU and installs the remaining build dependencies. Ubuntu 24.04 ARM64 and emulated x86-64 were validated in containers. Fedora/Arch recipes and physical Linux RF reception still need community testing.
+
+1. Download the [Linux source-installer archive](https://github.com/ReLLL/kondor-weak-signal-modes-decoder/releases/download/v1.0.67/kondor-weak-signal-modes-decoder-1.0.67-linux-source-installer.tar.gz).
+2. Extract it. Open a terminal in the extracted folder and run:
+
+   ```sh
+   bash install-linux.sh --install-deps
+   ```
+
+3. Let the build finish. Only dependency installation requests `sudo`; run the command as your normal user.
+4. Open **SDR++ with Kondor** from your application menu. Open Kondor from the sidebar, set **Settings > General > Maidenhead grid**, and start your receiver.
+
+The default installer builds a matching SDR++ alongside Kondor in your user account. Existing radio apps, profiles and reception files stay in place. The first build takes longer; later builds reuse the cache. Use `--jobs 2` if memory is limited.
+
+#### Existing host or manual Linux installation
+
+To install into an existing SDR++, supply its matching source, core library, executable and profile. The [Linux guide](docs/LINUX.md#existing-sdr-installation) gives the command and common folder locations. It also covers [manual compilation and file placement](docs/LINUX.md#manual-build-and-installation), cloning instead of downloading, backups and troubleshooting. Linux requires its own native build; use the Linux archive rather than macOS or Windows binaries.
 
 ### Finding your home grid: first-time setup
 
@@ -109,7 +131,7 @@ Most supported digital weak-signal modes rely on strict UTC time frames. Keep yo
 - Brown's **Source > Time correction** manually shifts capture timestamps; it does not synchronize the system clock. For live reception, normally leave it at **0 seconds** once the clock is correct, unless you deliberately need an offset.
 - After correcting the clock, stop and restart reception and allow a **complete new sequence** to collect. Also check the dial frequency, selected mode and sequence settings; clock synchronization alone cannot fix every decoding problem.
 
-## What you can see in 1.0.49
+## Features
 
 - **At a glance:** unique countries, unique stations, farthest distance with country, active decoding uptime, stations heard in the last five minutes, and the latest three calls with country, distance and receiver SNR. DX ACTIVITY BEARING summarizes distant reception within the shared filters. With either saved-history option on, an amber clock value after uptime shows elapsed time from the oldest retained reception; hover for its start date and meaning.
 - **Three reception views:** Unique stations, All messages and Countries heard. Repeated messages stay visible in All messages; country summaries show distinct senders, mean distance/SNR and the last five senders. Each table remembers its layout and sort.

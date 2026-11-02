@@ -7,7 +7,9 @@ int main(int argc,char** argv){
  if(argc!=2)return 2;auto root=std::filesystem::path(argv[1]);CHECK(std::filesystem::is_regular_file(root/".js8-test-owned"));std::ifstream input(root/"frames.json");dx::Json fixture;input>>fixture;auto home=*dx::gridPoint("KM69");int expected=3;
  {
   dx::Engine engine(root/"profile",root/"dx_mock_valid_small",home,[](const auto& call){return call.rfind("DL",0)==0?std::make_pair("Germany","EU"):std::make_pair("United States","NA");});
-  auto wait=[&](auto condition){auto until=dx::monotonicMs()+10000;while(dx::monotonicMs()<until){if(condition(*engine.snapshot()))return true;std::this_thread::sleep_for(std::chrono::milliseconds(10));}std::cerr<<engine.snapshot()->js8Error<<" | "<<engine.snapshot()->error<<'\n';return condition(*engine.snapshot());};
+  // The isolated helper has a 20-second response limit. Allow that failure to
+  // reach the snapshot even when concurrent decoder tests delay cold startup.
+  auto wait=[&](auto condition){auto until=dx::monotonicMs()+25000;while(dx::monotonicMs()<until){if(condition(*engine.snapshot()))return true;std::this_thread::sleep_for(std::chrono::milliseconds(10));}std::cerr<<engine.snapshot()->js8Error<<" | "<<engine.snapshot()->error<<'\n';return condition(*engine.snapshot());};
   CHECK(wait([](const auto& s){return s.generation>0;}));engine.active(true);dx::Job ft8;ft8.mode="FT8";ft8.dial=14074000;ft8.utcMs=int64_t(time(nullptr))*1000;ft8.deadlineMs=dx::monotonicMs()+30000;ft8.pcm.resize(180000);engine.enqueue(ft8);CHECK(wait([](const auto& s){return s.stats.messages==3;}));
   // A malformed JS8 job kills only that helper; a subsequent frame restarts it.
   auto broken=ft8;broken.mode="JS8";broken.periodMs=5000;broken.pcm.resize(60000);engine.enqueue(broken);CHECK(wait([](const auto& s){return s.failures>0&&!s.js8Error.empty();}));CHECK(engine.snapshot()->stats.messages==3&&engine.snapshot()->error.empty());

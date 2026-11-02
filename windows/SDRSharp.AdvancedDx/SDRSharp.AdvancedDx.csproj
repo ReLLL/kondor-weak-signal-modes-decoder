@@ -7,7 +7,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <Version>1.0.56</Version>
+    <Version>1.0.67</Version>
     <Authors>ReLLL</Authors>
     <Company>ReLLL</Company>
     <Product>Kondor Weak Signal Modes Decoder: FT8 / FT4 / WSPR / FST4 / FST4W / JS8 / Q65</Product>

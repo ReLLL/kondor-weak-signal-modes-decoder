@@ -40,6 +40,7 @@ int unresolvedSenderFilter(const std::filesystem::path& world,const std::filesys
 int main(int argc,char** argv){
  CHECK(argc==3);CHECK(unresolvedSenderFilter(argv[1],argv[2])==0);
  dx::LocationCheck check;CHECK(check.load(argv[1]));CHECK(!check.mismatch("Germany","JO33","DL8OH"));CHECK(check.mismatch("Germany","QF56","DL1ABC"));CHECK(!check.mismatch("Germany","QF56","DL1ABC/VK"));CHECK(!check.mismatch("United States","FN42","K1ABC"));CHECK(!check.mismatch("European Russia","KO85","RA5AD"));CHECK(!check.mismatch("Unknown country","QF56","DL1ABC"));CHECK(!check.mismatch("Germany","","DL1ABC"));CHECK(check.mismatch("Germany","QF56","<1:123>"));
+ CHECK(check.mismatch("Sicily","JD11","IT9JEO"));CHECK(!check.mismatch("Sicily","JM77","IT9JEO"));CHECK(!check.mismatch("Sicily","JD11","IT9JEO/P"));
  for(const auto& call:{"<0:1>","<1:2303>","<2:675541>","<...>"})CHECK(check.mismatch("","",call));
  for(const auto& call:{"","K1ABC","K1ABC/P","<K1ABC>","<1:>","<1:ABC>"})CHECK(!check.mismatch("","CE81WW",call));
  auto folder=(std::filesystem::temp_directory_path()/"dx-location-check-XXXXXX").string();CHECK(mkdtemp(folder.data()));TestFolderCleanup cleanup(folder);dx::Store store(std::filesystem::path(folder)/"history.sqlite3");CHECK(store.loadCountryAreas(argv[1]));auto home=*dx::gridPoint("KM69");

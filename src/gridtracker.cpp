@@ -88,7 +88,7 @@ void GridTracker::tick(Store& store,const Json& settings,const GridTrackerContex
  }
  if(pending_.size()<4000)for(auto& item:store.logRows(cursor_,1000)){cursor_=item.first;const auto& d=item.second;if(d.source=="live"&&d.utc>=std::max(utc-1800,utc/86400*86400)&&d.utc<=utc+30)pending_.push_back({d,true});}
  for(int i=0;i<20&&!pending_.empty();i++){auto item=std::move(pending_.front());pending_.pop_front();const auto& d=item.first;if(d.utc<utc/86400*86400||d.utc>utc+30)continue;Preset preset{d.dial,d.mode};remember(preset);auto id=wsjt::identity(preset);if(!sessions_.count(id))continue;
-  if(store.ignoredReception(d))continue;
+  if(d.diagnostics.suspect||store.ignoredReception(d))continue;
   if(announced_.insert(id).second)send(wsjt::heartbeat(id));if(send(wsjt::status(preset,context.call,context.grid,receiving))&&send(wsjt::decode(d,item.second)))++state_.sent;
  }
  if(milliseconds-lastPulse_>=5000){for(const auto& item:sessions_){send(wsjt::heartbeat(item.first));send(wsjt::status(item.second,context.call,context.grid,receiving));announced_.insert(item.first);}lastPulse_=milliseconds;}

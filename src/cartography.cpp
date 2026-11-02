@@ -60,6 +60,14 @@ CountryMesh countryMesh(const std::vector<std::vector<Point>>& rings,bool online
  }
  mesh.indices=mapbox::earcut<uint32_t>(shape);return mesh;
 }
+bool northAmericanLocation(Point home,const Json& world){
+ if(!std::isfinite(home.lat)||!std::isfinite(home.lon)||!world.is_object()||!world.contains("features")||!world["features"].is_array())return false;
+ for(const auto& feature:world["features"]){
+  if(feature["properties"].value("CONTINENT","")!="North America")continue;
+  auto coordinates=feature["geometry"]["coordinates"];if(feature["geometry"]["type"]=="Polygon")coordinates=Json::array({coordinates});
+  for(const auto& polygon:coordinates){std::vector<std::vector<Point>> rings;for(const auto& ring:polygon){std::vector<Point> points;for(const auto& p:ring)points.push_back({p[1].get<double>(),p[0].get<double>()});rings.push_back(std::move(points));}if(insidePolygon(home,rings))return true;}
+ }return false;
+}
 std::string countryOutlineKey(const std::string& country){
  std::string key;for(unsigned char c:upper(country))if(std::isalnum(c))key+=char(c);
  static const std::map<std::string,std::string> aliases={

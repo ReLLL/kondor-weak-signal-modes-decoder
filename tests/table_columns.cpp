@@ -36,6 +36,7 @@ int main(){
  auto path=std::filesystem::temp_directory_path()/("dx-columns-"+std::to_string(getpid())+".sqlite3");
  std::vector<dx::TableColumnSetting> columns;for(int i=0;i<18;i++)columns.push_back({17-i,85.5f+i*10,i!=8});
  const auto saved=dx::columnSettingsJson(columns);auto decoded=dx::columnSettingsFromJson(saved,18);CHECK(decoded&&dx::columnSettingsJson(*decoded)==saved);
+ auto appended=dx::columnSettingsFromJson(saved,19,true);CHECK(appended&&appended->size()==19&&appended->back().order==18&&appended->back().visible);for(size_t i=0;i<columns.size();i++)CHECK((*appended)[i].order==columns[i].order&&(*appended)[i].width==columns[i].width&&(*appended)[i].visible==columns[i].visible);
  auto invalid=saved;invalid[0]["order"]=invalid[1]["order"];CHECK(!dx::columnSettingsFromJson(invalid,18));invalid=saved;invalid[0]["order"]=18;CHECK(!dx::columnSettingsFromJson(invalid,18));invalid=saved;invalid[0]["width"]=-1;CHECK(!dx::columnSettingsFromJson(invalid,18));invalid=saved;invalid[0]["visible"]="yes";CHECK(!dx::columnSettingsFromJson(invalid,18));CHECK(!dx::columnSettingsFromJson(dx::Json::array(),18)&&!dx::columnSettingsFromJson(saved,17));
  {dx::Store store(path);store.setSetting("ui",{{"table_columns",saved}});}
  {dx::Store store(path);auto restored=dx::columnSettingsFromJson(store.getSetting("ui",dx::Json::object())["table_columns"],18);CHECK(restored&&dx::columnSettingsJson(*restored)==saved);}

@@ -33,5 +33,8 @@ int main(int argc,char** argv){
  CHECK(!dx::insidePolygon({0,179.8},seam));CHECK(!dx::insidePolygon({0,0},seam));
  CHECK(!dx::insidePolygon({NAN,0},seam));CHECK(!dx::insidePolygon({0,NAN},seam));
  CHECK(!dx::insidePolygon({0,0},{}));CHECK(!dx::insidePolygon({0,0},{{{0,0},{1,1}}}));
+ for(dx::Point home:std::vector<dx::Point>{{39,-98},{45,-75},{19,-99},{9,-80},{18,-77},{61,-150}})CHECK(dx::northAmericanLocation(home,world));
+ for(dx::Point home:std::vector<dx::Point>{{39,33},{48,2},{6,-58},{-12,-76},{0,0},{NAN,0}})CHECK(!dx::northAmericanLocation(home,world));
+ CHECK(!dx::northAmericanLocation({39,-98},dx::Json{}));
  std::cout<<"Country hover: eastern/western countries, ocean, world copies, dateline holes and Antarctica passed\n";
 }

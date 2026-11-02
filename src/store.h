@@ -26,7 +26,7 @@ public:
  std::vector<Decode> uniqueMessages(const Decode& station,const Query& view);
  Stats stats(int64_t now,const Filter& filter={});int64_t importBridge(const std::filesystem::path&,Point,const std::function<std::pair<std::string,std::string>(const std::string&)>&);
  Stats sessionStats(int64_t now,int64_t afterRowId,int64_t since,const Filter& filter={});
- bool passesLocationFilter(const Decode& d,const Filter& filter){return !filter.removeLikelyFalse||!locationCheck_.mismatch(d.country,d.identity.grid,d.identity.transmitter,filter.falseToleranceKm);}
+ bool passesLocationFilter(const Decode& d,const Filter& filter){return (filter.includeQuestionable||!d.diagnostics.suspect)&&(!filter.removeLikelyFalse||!locationCheck_.mismatch(d.country,d.identity.grid,d.identity.transmitter,filter.falseToleranceKm));}
  Json getSetting(const std::string& key,const Json& fallback);void setSetting(const std::string& key,const Json& value);
  void exportRows(const Query& query,const std::filesystem::path& path,bool csv);
  void reclassifyCountries(const std::function<std::pair<std::string,std::string>(const std::string&)>& country);
@@ -58,7 +58,7 @@ private:
  void ensureReceptionIds();void ensureEntities();void rebuildSummaries(bool stations=true);
  struct StatsCache {
   int64_t after=-1,since=0,cursor=0,dataVersion=-1,farthestId=0;
-  bool filtered=false,receivedOnly=false;double tolerance=300;
+  bool filtered=false,receivedOnly=false,includeQuestionable=false;double tolerance=300;
   Stats totals;std::map<std::string,std::pair<int64_t,Decode>> calls,countries;
   std::map<std::string,int64_t> countryFirst;
  };

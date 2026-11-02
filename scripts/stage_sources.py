@@ -12,9 +12,10 @@ ROOT = Path(__file__).resolve().parents[1]
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path, required=True)
+    parser.add_argument("--destination", type=Path, default=ROOT / "build")
     args = parser.parse_args()
-    destination = ROOT / "build"
-    destination.mkdir(exist_ok=True)
+    destination = args.destination.resolve()
+    destination.mkdir(parents=True, exist_ok=True)
     archive = subprocess.check_output(["git", "-C", args.source, "archive", PIN,
                                        "license", "core", "decoder_modules/ft8_decoder", "decoder_modules/radio"])
     with tarfile.open(fileobj=io.BytesIO(archive)) as files:

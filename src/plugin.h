@@ -6,6 +6,8 @@
 #include "cartography.h"
 #include "modes.h"
 #include "status_bar.h"
+#include "share_card.h"
+#include <future>
 #if DX_HOST_SDRSHARP
 #include "capture_windows.h"
 class DXHostInstance {
@@ -29,7 +31,7 @@ using DXCountryDatabase=dx::CountryDatabase;
 #endif
 #include <map>
 class DXNotebook;
-namespace dx {std::optional<std::string> chooseCsvLog(const std::string& current);bool playAlertSound(const std::string& name);std::vector<unsigned char> homeIconPixels();std::vector<unsigned char> trophyIconPixels();std::vector<unsigned char> flagIconPixels(const std::string& code);void openCallsignLookup(const std::string& call,int provider);}
+namespace dx {std::optional<std::string> chooseCsvLog(const std::string& current);bool playAlertSound(const std::string& name);std::vector<unsigned char> homeIconPixels();std::vector<unsigned char> trophyIconPixels();std::vector<unsigned char> flagIconPixels(const std::string& code);void openFeedbackProfile();void openCallsignLookup(const std::string& call,int provider);}
 #if !DX_HOST_SDRSHARP
 struct DXChannel {
  DXNotebook* owner;dx::Preset preset;std::string name;dsp::channel::RxVFO* vfo=nullptr;
@@ -63,6 +65,9 @@ public:
  void receiveWindowsAudio(dx::SharpAudio);
 #endif
 private:
+ void prepareShare(const dx::Snapshot&,bool force=true);void shareWindow(const dx::Snapshot&);void renderShare();
+ dx::ShareCard shareCard_;dx::ShareImage shareImage_;std::future<dx::ShareImage> shareFuture_;
+ unsigned int shareTexture_=0;std::string shareStatus_;char shareCallsign_[33]="MY STATION";bool shareRenderPending_=false;float shareWindowWidth_=960;double shareRefreshAt_=0;
  void tableTabs();void countryTable(const std::vector<dx::CountrySummary>& rows);
  int tableTab_=0,messageSort_=18,countrySort_=5;bool messageDescending_=true,countryDescending_=true,tabsApplied_=false,messageColumnsApplied_=false;
  std::vector<dx::TableColumnSetting> messageColumns_,countryColumns_;bool countryColumnsApplied_=false;
@@ -74,7 +79,7 @@ private:
 #endif
  void cornerNotifications(CornerBounds args);
  unsigned int countryFlagIcon(const std::string& country);void countryFlag(const std::string& country);unsigned int trophyTexture();
- bool cornerEnabled_=true,cornerVisible_=false,distanceMiles_=false,approximateCountryDistances_=true;int cornerSeconds_=10;ImVec2 cornerMin_,cornerMax_;std::map<std::string,std::string> flagCodes_;
+ bool cornerEnabled_=true,cornerVisible_=false,distanceMiles_=false,initialDistanceMiles_=false,approximateCountryDistances_=true;int cornerSeconds_=10;ImVec2 cornerMin_,cornerMax_;std::map<std::string,std::string> flagCodes_;
  std::map<std::string,unsigned int> cornerIcons_;std::map<std::string,std::pair<std::string,int64_t>> cornerChanges_;
 #if DX_HOST_BROWN
  EventHandler<ImGui::WaterFall::WaterfallDrawArgs> cornerHandler_;
@@ -86,7 +91,7 @@ private:
  std::string receiverGrid_,receiverCall_;bool receiverGridError_=false;
 #endif
  bool enabled_=true,open_=false,present_=false,paused_=false,ft8_=true,ft4_=true,ownsGesture_=false,popup_=false,settingsLoaded_=false,detailsOpen_=false;
- dx::Json modeSettings_=dx::Json::object();bool modeSettings();bool modeEnabled(const std::string&)const;std::vector<dx::Preset> additionalPresets()const;
+ int ftDecodeDepth_=dx::defaultFtDecodeDepth;dx::Json modeSettings_=dx::Json::object();bool modeSettings();bool modeEnabled(const std::string&)const;std::vector<dx::Preset> additionalPresets()const;
  int view_=0,tableTime_=2,sort_=17;bool descending_=true;float split_=.53f,detailsSplit_=.3f;
  double center_=0,rate_=0,lastRefresh_=0;uint64_t generation_=1;ImVec2 windowMin_,windowMax_;
  std::vector<std::unique_ptr<DXChannel>> channels_;std::vector<dx::Preset> presets_=dx::presets();

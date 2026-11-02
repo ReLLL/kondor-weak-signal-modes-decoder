@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.67 (2026-11-02)
+
+- Add a Linux SDR++ source installer for native ARM64 and x86-64 builds, dependency setup, matching-host checks, upgrade backups and rollback. Document automatic installation, manual builds and validation limits.
+- Preserve FT8/FT4 decoder flags and relative confidence. Keep questionable decodes available for table/history inspection while excluding them from maps, distance records, bearings, statistics, alerts, identity caches and GridTracker. Handle free text, telemetry and structured exchanges without inventing station identities.
+- Default FT8/FT4 search depth to Deep, with clearer Fast/Normal/Deep explanations and existing choices preserved.
+- Add live 2400 x 1350 reception-share images with an embedded HF antenna background, editable remembered callsign, receiver privacy and shared km/miles selection. Check live stats every three seconds while open and skip unchanged renders. Copy/save PNG and prepare social captions; posting remains under user control.
+- Improve Share typography, compact layout, labels and green button. Show the farthest reception's country more prominently, use gold for the share callsign and color enabled modes separately. New profiles with known North American home grids initially use miles; saved choices always win.
+- Add table-header and unresolved-hash explanations, Help > About with version and feedback links, QRZ shortcuts and the installed version in the main window title.
+- Keep country-estimate details in the DX bearing tooltip without adding a prefix to its displayed value. Preserve receiver-relative distances, shared filters and saved reception evidence.
+- Retain all seven receive modes and separate macOS SDR++/Brown, Windows SDR# and Linux build targets. Installers preserve profiles, settings and reception history.
+
 ## 1.0.56 (2026-11-01)
 
 Includes the unpublished 1.0.54 and 1.0.55 changes below: hidden startup, unresolved-sender filtering, bundled DSP runtimes and host compatibility checks. Settings and saved receptions are preserved during installation.

@@ -73,17 +73,25 @@ std::string callsignLookupUrl(const std::string& input,int provider){
 }
 Meaning meaning(const std::string& message){
  Meaning m;std::stringstream in(upper(message));std::vector<std::string> w;std::string s;while(in>>s)w.push_back(s);
- auto call=[](const std::string& c){return c.size()>=3&&(c.front()=='<'||std::regex_match(c,std::regex("[A-Z0-9/]+"))&&c.find_first_of("0123456789")!=std::string::npos&&c.find_first_of("ABCDEFGHIJKLMNOPQRSTUVWXYZ")!=std::string::npos);};
+ static const std::regex callPattern("[A-Z0-9/]+"),reportPattern("R?[+-][0-9]{2}"),exchangePattern("[0-9]{6}"),contestPattern("[1-9][0-9]?[A-H]|5[0-9]{2}"),sectionPattern("[A-Z]{2,3}|[0-9]{1,4}");
+ auto call=[](const std::string& c){if(c.size()>2&&c.front()=='<'&&c.back()=='>')return true;return c!="RR73"&&c.size()>=3&&c.size()<=24&&std::regex_match(c,callPattern)&&c.find_first_of("0123456789")!=std::string::npos&&c.find_first_of("ABCDEFGHIJKLMNOPQRSTUVWXYZ")!=std::string::npos;};
+ if(!w.empty()&&w.front()=="TU;")w.erase(w.begin()); // RTTY contest acknowledgement prefix.
  if(w.size()<2)return m;
  if(w[0]=="CQ"||w[0]=="QRZ"||w[0]=="DE"){
   m.type=w[0];m.called=w[0];size_t index=1;if(w.size()>2&&!call(w[1]))index=2;
   if(index<w.size()&&call(w[index]))m.transmitter=w[index];
- }else if(w.size()>=3&&call(w[0])&&call(w[1])){m.called=w[0];m.transmitter=w[1];}
+ }else if(w.size()>=2&&call(w[0])&&call(w[1])){m.called=w[0];m.transmitter=w[1];}
+ if(!m.transmitter.empty()&&m.called!="CQ"&&m.called!="QRZ"&&m.called!="DE"){
+  const auto& last=w.back();bool tail=w.size()==2||(w.size()==3&&(gridPoint(last)||last=="RRR"||last=="RR73"||last=="73"||std::regex_match(last,reportPattern)));
+  tail|=w.size()==4&&((w[2]=="R"&&gridPoint(last))||(std::regex_match(w[2],exchangePattern)&&last.size()==6&&gridPoint(last))||(std::regex_match(w[2],contestPattern)&&std::regex_match(last,sectionPattern)));
+  tail|=w.size()==5&&w[2]=="R"&&((std::regex_match(w[3],exchangePattern)&&last.size()==6&&bool(gridPoint(last)))||(std::regex_match(w[3],contestPattern)&&std::regex_match(last,sectionPattern)));
+  if(!tail)return {};
+ }
  if(!m.transmitter.empty()&&w.size()>=3){auto last=w.back();if(gridPoint(last)){m.grid=last;m.type=m.type=="Text"?"Grid":m.type;}
   else if(last=="RRR"||last=="RR73"||last=="73")m.type=last;
-  else if(std::regex_match(last,std::regex("R[+-][0-9]{2}")))m.type="R-report";
-  else if(std::regex_match(last,std::regex("[+-][0-9]{2}")))m.type="Report";
- }return m;
+  else if(last.front()=='R'&&std::regex_match(last,reportPattern))m.type="R-report";
+  else if(std::regex_match(last,reportPattern))m.type="Report";
+ }for(auto* value:{&m.transmitter,&m.called})if(value->size()>2&&value->front()=='<'&&value->back()=='>'){auto inner=value->substr(1,value->size()-2);if(std::regex_match(inner,callPattern)&&inner.find_first_of("0123456789")!=std::string::npos&&inner.find_first_of("ABCDEFGHIJKLMNOPQRSTUVWXYZ")!=std::string::npos)*value=std::move(inner);}return m;
 }
 Meaning receptionMeaning(const std::string& mode,const std::string& message){
  if(mode=="JS8"){
@@ -123,9 +131,8 @@ ActivityBearing activityBearing(const std::vector<Decode>& decodes){
  if(result.alignment>=.5)result.degrees=std::fmod(std::atan2(y,x)/rad+360.,360.);return result;
 }
 std::string activityBearingText(const ActivityBearing& bearing){
- auto prefix=bearing.countryEstimates?"[C] ":"";
- if(!bearing.degrees)return std::string(prefix)+(bearing.stations?"Mixed directions":"No matching stations");
- return prefix+std::to_string(int(std::fmod(std::round(*bearing.degrees),360.)))+"° | "+compassDirection(*bearing.degrees);
+ if(!bearing.degrees)return bearing.stations?"Mixed directions":"No matching stations";
+ return std::to_string(int(std::fmod(std::round(*bearing.degrees),360.)))+"° | "+compassDirection(*bearing.degrees);
 }
 std::string compassDirection(double degrees){const char* names[]={"North","Northeast","East","Southeast","South","Southwest","West","Northwest"};return names[int(std::floor((std::fmod(degrees+360.,360.)+22.5)/45.))%8];}
 std::vector<Decode> farthestActivity(Point home,const std::vector<Row>& rows,int count){
@@ -153,13 +160,15 @@ std::string countryName(std::string name){return name=="Fed. Rep. of Germany"?"G
 bool Stats::isNewestCountry(const std::string& country)const{return !country.empty()&&std::find(newestCountries.begin(),newestCountries.end(),country)!=newestCountries.end();}
 Json Decode::json()const{
  Json j={{"timestamp",utc},{"slot_ms",slotMs},{"frequency",dial},{"mode",mode},{"audio_hz",audio},{"snr",snr},{"dt",dt?Json(*dt):Json(nullptr)},{"message",message},{"raw",raw},{"source",source},{"country",countryName(country)},{"continent",continent},{"transmitter",identity.transmitter},{"called",identity.called},{"grid",identity.grid},{"type",identity.type},{"identity_source",identitySource},{"grid_source",gridSource},{"grid_utc",gridUtc},{"km",km?Json(*km):Json(nullptr)},{"bearing",bearing?Json(*bearing):Json(nullptr)},{"first_call",firstCall},{"first_grid",firstGrid},{"first_country",firstCountry},{"distance_record",distanceRecord}};
+ if(!diagnostics.flags.empty())j["decoder_flags"]=diagnostics.flags;if(diagnostics.quality)j["decoder_quality"]=*diagnostics.quality;if(diagnostics.suspect)j["decoder_suspect"]=true;
  if(periodMs)j["period_ms"]=periodMs;if(submode>=0)j["submode"]=submode;if(averagedIntervals>1)j["averaged_intervals"]=averagedIntervals;if(txPowerDbm)j["tx_power_dbm"]=*txPowerDbm;if(!messageComplete)j["message_complete"]=false;if(!countryDistanceGrid.empty()){j["distance_source"]="country";j["distance_estimate_grid"]=countryDistanceGrid;}return j;
 }
 Decode Decode::fromJson(const Json& j){
  Decode d;d.utc=j.at("timestamp");d.slotMs=j.value("slot_ms",d.utc*1000);d.dial=j.at("frequency");d.mode=j.at("mode");d.snr=j.at("snr");d.audio=j.at("audio_hz");d.message=j.at("message");d.raw=j.value("raw","");d.source=j.value("source","legacy");
- if(j.contains("dt")&&!j["dt"].is_null()&&d.source!="legacy")d.dt=j["dt"].get<double>();d.identity=receptionMeaning(d.mode,d.message);d.identitySource=j.value("identity_source","literal");
+ if(j.contains("dt")&&!j["dt"].is_null()&&d.source!="legacy")d.dt=j["dt"].get<double>();auto parsedIdentity=decodedMeaning(d.mode,d.message,d.raw);d.identity=parsedIdentity;d.diagnostics=decoderDiagnostics(d.mode,d.raw);d.diagnostics.suspect=d.diagnostics.suspect||j.value("decoder_suspect",false);if(j.contains("decoder_flags"))d.diagnostics.flags=j.value("decoder_flags",d.diagnostics.flags);if(j.contains("decoder_quality")&&j["decoder_quality"].is_number()){auto q=j["decoder_quality"].get<double>();if(std::isfinite(q)&&q>=0&&q<=1)d.diagnostics.quality=q;}d.identitySource=j.value("identity_source","literal");
  if(j.contains("transmitter"))d.identity.transmitter=j["transmitter"];if(j.contains("called"))d.identity.called=j["called"];d.country=countryName(j.value("country",""));d.continent=j.value("continent","");d.gridSource=j.value("grid_source","");d.gridUtc=j.value("grid_utc",int64_t(0));
  if(j.contains("grid"))d.identity.grid=j["grid"];d.position=gridPoint(d.identity.grid);if(j.contains("km")&&!j["km"].is_null())d.km=j["km"].get<double>();if(j.contains("bearing")&&!j["bearing"].is_null())d.bearing=j["bearing"].get<double>();
+ if((d.mode=="FT8"||d.mode=="FT4")&&d.raw.rfind(d.mode+"_OUT\t",0)==0&&parsedIdentity.transmitter.empty()){d.identity={};d.country.clear();d.continent.clear();d.position.reset();d.km.reset();d.bearing.reset();d.gridSource.clear();}
  d.firstCall=j.value("first_call",false);d.firstGrid=j.value("first_grid",false);d.firstCountry=j.value("first_country",false);d.distanceRecord=j.value("distance_record",false);
  d.periodMs=j.value("period_ms",0);d.submode=j.value("submode",-1);d.averagedIntervals=j.value("averaged_intervals",1);d.messageComplete=j.value("message_complete",true);if(j.value("distance_source",std::string{})=="country")d.countryDistanceGrid=j.value("distance_estimate_grid",std::string{});
  if(d.mode=="WSPR"||d.mode=="FST4W"){
@@ -174,6 +183,8 @@ bool IgnoreTarget::matches(const Decode& d)const{return value==upper(message?d.m
 std::optional<IgnoreTarget> ignoreTarget(const Decode& d){IgnoreTarget target{upper(d.identity.transmitter.empty()?d.message:d.identity.transmitter),d.identity.transmitter.empty()};if(target.value.empty()||target.value.find('\0')!=std::string::npos)return {};return target;}
 bool Filter::accepts(const Decode& d)const{
  const auto& i=d.identity;
+ if(!includeQuestionable&&d.diagnostics.suspect)return false;
+ if(!columnRanges[size_t(ColumnMetric::Confidence)].accepts(d.diagnostics.quality))return false;
  if((!excludeCall.empty()&&matches(i.transmitter,excludeCall))||(!excludeCalled.empty()&&matches(targetCall(i),excludeCalled))||(!excludeCountry.empty()&&matches(d.country,excludeCountry))||(!excludeGrid.empty()&&matches(i.grid,excludeGrid)))return false;
  if(!search.empty()&&upper(d.message+" "+d.country+" "+i.transmitter).find(upper(search))==std::string::npos)return false;
  if(!matches(d.source,source)||!matches(i.transmitter,call)||!matches(targetCall(i),called)||!matches(d.country,country)||!matches(d.continent,continent)||!matches(i.grid,grid)||!matches(bandName(d.dial),band)||!matches(d.mode,mode)||!matches(std::to_string(d.dial),frequency)||!matches(i.type,type))return false;
@@ -187,13 +198,13 @@ bool Filter::accepts(const Decode& d)const{
 }
 bool Filter::hasColumnRanges()const{return std::any_of(columnRanges.begin(),columnRanges.end(),[](const NumericRange& range){return range.active();});}
 bool Filter::accepts(const Row& row,int64_t referenceUtc)const{if(!accepts(row.decode))return false;auto age=[&](int64_t utc)->std::optional<double>{return utc>0?std::optional<double>{double(std::max<int64_t>(0,referenceUtc-utc))}:std::nullopt;};std::array<std::optional<double>,4> values={double(row.count),age(row.decode.utc),age(row.firstHeardUtc),age(row.stationFirstHeardUtc)};for(size_t i=0;i<values.size();i++)if(!columnRanges[i+6].accepts(values[i]))return false;return true;}
-Json Filter::json()const{return {{"source",source},{"search",search},{"call",call},{"called",called},{"prefix",prefix},{"country",countryName(country)},{"continent",continent},{"grid",grid},{"band",band},{"mode",mode},{"frequency",frequency},{"text",text},{"type",type},{"excludeCall",excludeCall},{"excludeCalled",excludeCalled},{"excludeCountry",excludeCountry},{"excludeGrid",excludeGrid},{"messageKind",int(messageKind)},{"removeLikelyFalse",removeLikelyFalse},{"falseToleranceKm",falseToleranceKm},{"cqOnly",cqOnly},{"hasGrid",hasGrid},{"hasTarget",hasTarget},{"first",first},{"columnRanges",columnRangesJson(columnRanges)},{"minKm",minKm},{"maxKm",maxKm},{"minSnr",minSnr},{"maxDt",maxDt}};}
+Json Filter::json()const{return {{"source",source},{"search",search},{"call",call},{"called",called},{"prefix",prefix},{"country",countryName(country)},{"continent",continent},{"grid",grid},{"band",band},{"mode",mode},{"frequency",frequency},{"text",text},{"type",type},{"excludeCall",excludeCall},{"excludeCalled",excludeCalled},{"excludeCountry",excludeCountry},{"excludeGrid",excludeGrid},{"messageKind",int(messageKind)},{"removeLikelyFalse",removeLikelyFalse},{"includeQuestionable",includeQuestionable},{"falseToleranceKm",falseToleranceKm},{"cqOnly",cqOnly},{"hasGrid",hasGrid},{"hasTarget",hasTarget},{"first",first},{"columnRanges",columnRangesJson(columnRanges)},{"minKm",minKm},{"maxKm",maxKm},{"minSnr",minSnr},{"maxDt",maxDt}};}
 Filter Filter::fromJson(const Json& j){Filter f;
 #define STR(k) f.k=j.value(#k,"")
  STR(source);STR(search);STR(call);STR(called);STR(prefix);STR(country);STR(continent);STR(grid);STR(band);STR(mode);STR(frequency);STR(text);STR(type);STR(excludeCall);STR(excludeCalled);STR(excludeCountry);STR(excludeGrid);
 #undef STR
  for(auto* pattern:{&f.country,&f.excludeCountry}){const std::string legacy="Fed. Rep. of Germany";size_t pos=0;while((pos=pattern->find(legacy,pos))!=std::string::npos){pattern->replace(pos,legacy.size(),"Germany");pos+=7;}}
- f.messageKind=MessageKind(std::clamp(j.value("messageKind",0),0,4));f.removeLikelyFalse=j.value("removeLikelyFalse",false);f.falseToleranceKm=j.value("falseToleranceKm",300.);if(!std::isfinite(f.falseToleranceKm))f.falseToleranceKm=300.;f.falseToleranceKm=std::clamp(f.falseToleranceKm,0.,2000.);f.cqOnly=j.value("cqOnly",false);f.hasGrid=j.value("hasGrid",false);f.hasTarget=j.value("hasTarget",false);f.columnRanges=columnRangesFromJson(j.value("columnRanges",Json::object()));f.first=j.value("first",false);f.minKm=j.value("minKm",0.);f.maxKm=j.value("maxKm",40080.);f.minSnr=j.value("minSnr",-100.);f.maxDt=j.value("maxDt",30.);return f;
+ f.includeQuestionable=j.value("includeQuestionable",false);f.messageKind=MessageKind(std::clamp(j.value("messageKind",0),0,4));f.removeLikelyFalse=j.value("removeLikelyFalse",false);f.falseToleranceKm=j.value("falseToleranceKm",300.);if(!std::isfinite(f.falseToleranceKm))f.falseToleranceKm=300.;f.falseToleranceKm=std::clamp(f.falseToleranceKm,0.,2000.);f.cqOnly=j.value("cqOnly",false);f.hasGrid=j.value("hasGrid",false);f.hasTarget=j.value("hasTarget",false);f.columnRanges=columnRangesFromJson(j.value("columnRanges",Json::object()));f.first=j.value("first",false);f.minKm=j.value("minKm",0.);f.maxKm=j.value("maxKm",40080.);f.minSnr=j.value("minSnr",-100.);f.maxDt=j.value("maxDt",30.);return f;
 }
 std::vector<Preset> presets(){std::vector<Preset> p;for(int64_t f:{1840000,3573000,5357000,7074000,10136000,14074000,18100000,21074000,24915000,28074000,50323000,144174000,222065000,432065000})p.push_back({f,"FT8"});for(int64_t f:{7047500,10140000,14080000,18104000,21140000,28180000})p.push_back({f,"FT4"});return p;}
 std::vector<Preset> eligible(double center,double width,const std::vector<Preset>& all){std::vector<Preset> p;for(auto& v:all)if(v.dial>=center-width/2&&v.dial+6000<=center+width/2)p.push_back(v);return p;}

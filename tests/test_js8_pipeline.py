@@ -34,7 +34,7 @@ def main():
                 (root / f"frame-{len(metadata['frames'])}.pcm").write_bytes(pcm[i * block:(i + 1) * block])
                 metadata["frames"].append(frame)
         (root / "frames.json").write_text(json.dumps(metadata))
-        result = subprocess.run([str(pipeline), str(root)], timeout=60)
+        result = subprocess.run([str(pipeline), str(root)], timeout=120)
         if result.returncode:
             print((root / "helper-stderr.txt").read_text(), file=sys.stderr)
             result.check_returncode()

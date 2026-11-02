@@ -90,7 +90,7 @@ cmake -S . -B build-linux -DCMAKE_BUILD_TYPE=Release \
 cmake --build build-linux -j2
 ctest --test-dir build-linux --output-on-failure
 cmake --install build-linux --prefix "$PWD/build-linux/payload"
-build-linux/dx_host_probe /path/to/libsdrpp_core.so build-linux/payload/dx_notebook.so
+build-linux/payload/dx_host_probe /path/to/libsdrpp_core.so build-linux/payload/dx_notebook.so
 ```
 
 Use `-DDX_ADDITIONAL_MODES=OFF -DDX_JS8=OFF` only when intentionally building FT8/FT4 alone. Do not present that reduced payload as supporting the other modes.
